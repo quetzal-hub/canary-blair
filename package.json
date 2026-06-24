@@ -1,0 +1,14 @@
+{
+  "name": "canary-blair-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "node pipeline/bootstrap.js",
+    "sync-test": "node pipeline/test-sync.js"
+  },
+  "devDependencies": {
+    "adm-zip": "^0.5.0",
+    "dotenv": "^17.3.1"
+  }
+}

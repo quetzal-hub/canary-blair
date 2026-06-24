@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#1a1a1a"/>
+  <!-- Canary silhouette -->
+  <g transform="translate(100, 60) scale(0.7)">
+    <!-- Body -->
+    <ellipse cx="250" cy="380" rx="130" ry="100" fill="#c9a84c"/>
+    <!-- Head -->
+    <circle cx="320" cy="240" r="70" fill="#c9a84c"/>
+    <!-- Beak -->
+    <polygon points="390,235 430,245 390,255" fill="#a08535"/>
+    <!-- Eye -->
+    <circle cx="340" cy="230" r="8" fill="#1a1a1a"/>
+    <!-- Wing -->
+    <ellipse cx="200" cy="350" rx="90" ry="60" fill="#a08535" transform="rotate(-15, 200, 350)"/>
+    <!-- Tail -->
+    <polygon points="120,380 60,320 80,300 140,360" fill="#a08535"/>
+    <!-- Legs -->
+    <line x1="220" y1="470" x2="210" y2="530" stroke="#a08535" stroke-width="8" stroke-linecap="round"/>
+    <line x1="280" y1="470" x2="270" y2="530" stroke="#a08535" stroke-width="8" stroke-linecap="round"/>
+    <!-- Feet -->
+    <line x1="210" y1="530" x2="190" y2="535" stroke="#a08535" stroke-width="6" stroke-linecap="round"/>
+    <line x1="210" y1="530" x2="220" y2="540" stroke="#a08535" stroke-width="6" stroke-linecap="round"/>
+    <line x1="270" y1="530" x2="250" y2="535" stroke="#a08535" stroke-width="6" stroke-linecap="round"/>
+    <line x1="270" y1="530" x2="280" y2="540" stroke="#a08535" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,9 @@
+name = "canary-blair-sync"
+main = "pipeline/sync.js"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["0 6 * * *"]
+
+[vars]
+STATE = "WV"
