@@ -34,26 +34,30 @@
 			</div>
 		</div>
 		{#if member.canary_score != null}
-			<div class="score-col {scoreColor(member.canary_score)}">
-				<span class="score-number">{member.canary_score}</span>
+			<div
+				class="score-col {scoreColor(member.canary_score)}"
+				role="img"
+				aria-label="Canary Score {member.canary_score} out of 100{tier ? `, ${tier.name}` : ''}"
+			>
+				<span class="score-number" aria-hidden="true">{member.canary_score}</span>
 			</div>
 		{:else}
-			<div class="score-col score-unscored">
-				<span class="score-number">-</span>
+			<div class="score-col score-unscored" role="img" aria-label="Not yet scored">
+				<span class="score-number" aria-hidden="true">-</span>
 			</div>
 		{/if}
 	</div>
 	{#if tier}
 		<div class="tier-row {tier.cssClass}">
-			<span class="tier-emoji">{tier.emoji}</span>
+			<span class="tier-emoji" aria-hidden="true">{tier.emoji}</span>
 			<span class="tier-name">{tier.name}</span>
 			{#if member.canary_votes_scored}
-				<span class="vote-count" title="Scored votes behind this number">· {member.canary_votes_scored} votes</span>
+				<span class="vote-count">· {member.canary_votes_scored} scored votes</span>
 			{/if}
 		</div>
 	{:else}
 		<div class="tier-row tier-unscored">
-			<span class="tier-emoji">🥚</span>
+			<span class="tier-emoji" aria-hidden="true">🥚</span>
 			<span class="tier-name">Unscored</span>
 		</div>
 	{/if}
@@ -62,7 +66,7 @@
 			{#each member.canary_badges as badge}
 				{@const b = getBadgeData(badge)}
 				{#if b}
-					<span class="badge-pill" title={b.desc}>{b.emoji} {b.name}</span>
+					<span class="badge-pill"><span aria-hidden="true">{b.emoji}</span> {b.name}</span>
 				{/if}
 			{/each}
 		</div>
@@ -163,6 +167,13 @@
 	.score-bad { background: var(--color-score-bad); }
 	.score-terrible { background: var(--color-score-terrible); }
 	.score-unscored { background: var(--color-text-dim); }
+
+	/* Dark numerals on the light-background tiers for legible contrast (WCAG) */
+	.score-good .score-number,
+	.score-neutral .score-number,
+	.score-poor .score-number {
+		color: #1a1a1a;
+	}
 
 	.tier-row {
 		display: flex;

@@ -6,7 +6,8 @@
 </script>
 
 <div class="app">
-	<nav class="nav">
+	<a href="#main-content" class="skip-link">Skip to main content</a>
+	<nav class="nav" aria-label="Primary">
 		<div class="container nav-inner">
 			<a href="/" class="nav-brand">
 				<svg class="canary-icon" viewBox="0 0 440 420" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -32,7 +33,7 @@
 		</div>
 	</nav>
 
-	<main class="main">
+	<main class="main" id="main-content">
 		{@render children()}
 	</main>
 

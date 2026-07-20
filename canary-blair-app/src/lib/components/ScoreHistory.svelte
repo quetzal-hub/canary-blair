@@ -28,10 +28,15 @@
 		<div class="history-head">
 			<span class="history-title">Score over time</span>
 			<span class="delta {delta >= 0 ? 'pos' : 'neg'}">
-				{delta >= 0 ? '▲' : '▼'} {Math.abs(delta)} since {formatDate(first.snapshot_date)}
+				<span aria-hidden="true">{delta >= 0 ? '▲' : '▼'}</span> {Math.abs(delta)} since {formatDate(first.snapshot_date)}
 			</span>
 		</div>
-		<svg viewBox="0 0 {W} {H}" class="spark" preserveAspectRatio="none" role="img" aria-label="Canary Score history">
+		<p class="sr-only">
+			Canary Score history: {points.length} recorded scores. Started at {first.canary_score} on
+			{formatDate(first.snapshot_date)} and is now {latest.canary_score} as of {formatDate(latest.snapshot_date)},
+			a change of {delta >= 0 ? 'up' : 'down'} {Math.abs(delta)} points.
+		</p>
+		<svg viewBox="0 0 {W} {H}" class="spark" preserveAspectRatio="none" role="img" aria-hidden="true">
 			<line x1={PAD} y1={H - PAD - (50 / 100) * (H - 2 * PAD)} x2={W - PAD} y2={H - PAD - (50 / 100) * (H - 2 * PAD)} class="midline" />
 			<path d={path} class="line" fill="none" />
 			{#each points as p, i}
