@@ -182,6 +182,13 @@
 				</div>
 			</div>
 			<div class="badge-item">
+				<span class="badge-icon">🌞</span>
+				<div>
+					<strong>Renewables Champion</strong>
+					<p>Consistently votes for clean and renewable energy — solar, wind, efficiency, storage — and against bills that prop up fossil fuels at its expense. "Energy" isn't automatically bad: we judge who a bill actually benefits, and reward the legislators building the future instead of protecting the past.</p>
+				</div>
+			</div>
+			<div class="badge-item">
 				<span class="badge-icon">🦅</span>
 				<div>
 					<strong>Lone Canary</strong>

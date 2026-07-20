@@ -2,8 +2,8 @@
 	// Canonical topic tags (same list the summarizer chooses from).
 	const tags = [
 		'water', 'environment', 'workers', 'education', 'healthcare', 'coal', 'energy',
-		'corporations', 'taxes', 'housing', 'voting-rights', 'civil-rights', 'children',
-		'elderly', 'public-safety', 'guns', 'criminal-justice', 'agriculture'
+		'clean-energy', 'corporations', 'taxes', 'housing', 'voting-rights', 'civil-rights',
+		'children', 'elderly', 'public-safety', 'guns', 'criminal-justice', 'agriculture'
 	];
 </script>
 

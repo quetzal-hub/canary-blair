@@ -198,6 +198,34 @@ test('friend-of-worker follows the same two-sided pattern rule', () => {
 	assert.ok(r.canary_badges.includes('friend-of-worker'));
 });
 
+test('renewables-champion rewards a strong clean-energy record', () => {
+	// 5 for_people clean-energy bills, all Yea → earns it even with no
+	// anti-renewable bills on record (the capital gate only applies at ≥3).
+	const cleanPeople = makeBills(5, { alignment: 'for_people', tags: ['clean-energy', 'environment'] });
+	const [r] = run({ bills: cleanPeople, votes: votesFor(1, cleanPeople, 1), members: [MEMBER] });
+	assert.ok(r.canary_badges.includes('renewables-champion'));
+
+	// Fewer than 5 clean-energy people bills → not enough of a pattern.
+	const few = makeBills(4, { alignment: 'for_people', tags: ['clean-energy'] });
+	const [r2] = run({ bills: few, votes: votesFor(1, few, 1), members: [MEMBER] });
+	assert.ok(!r2.canary_badges.includes('renewables-champion'));
+});
+
+test('renewables-champion is denied to someone who also backs fossil-fuel giveaways', () => {
+	// Strong pro-renewable record, but also voted Yea on 3+ for_capital
+	// clean-energy bills (e.g. bills that undercut renewables) → gate fails.
+	const cleanPeople = makeBills(5, { alignment: 'for_people', tags: ['clean-energy'] });
+	const cleanCapital = makeBills(3, { alignment: 'for_capital', tags: ['clean-energy'], startId: 100 });
+	const votes = [...votesFor(1, cleanPeople, 1), ...votesFor(1, cleanCapital, 1)];
+	const [r] = run({ bills: [...cleanPeople, ...cleanCapital], votes, members: [MEMBER] });
+	assert.ok(!r.canary_badges.includes('renewables-champion'));
+
+	// Same record but voting Nay on those anti-renewable bills → earns it.
+	const votes2 = [...votesFor(1, cleanPeople, 1), ...votesFor(1, cleanCapital, 2)];
+	const [r2] = run({ bills: [...cleanPeople, ...cleanCapital], votes: votes2, members: [MEMBER] });
+	assert.ok(r2.canary_badges.includes('renewables-champion'));
+});
+
 test('members with no votes at all get a null score and no badges', () => {
 	const [r] = run({ bills: [], votes: [], members: [MEMBER] });
 	assert.equal(r.canary_score, null);
