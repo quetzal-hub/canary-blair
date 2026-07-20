@@ -309,6 +309,7 @@ async function run() {
 	// ── Step 6: Process bills (batched) ──────
 	console.log('📄 Processing bills...');
 	const billRows = [];
+	const committeeRows = [];
 	const sponsorMemberRows = [];
 	const sponsorRows = [];
 	const actionRows = [];
@@ -322,6 +323,16 @@ async function run() {
 
 			const latestText = bill.texts?.length ? bill.texts[bill.texts.length - 1] : null;
 			const billTextUrl = latestText?.state_link || latestText?.url || bill.url || null;
+
+			const committee = bill.committee && bill.committee.committee_id ? bill.committee : null;
+			if (committee) {
+				committeeRows.push({
+					id: committee.committee_id,
+					name: committee.name,
+					chamber: committee.chamber || (committee.chamber_id === 2 ? 'S' : committee.chamber_id === 1 ? 'H' : null),
+					updated_at: new Date().toISOString()
+				});
+			}
 
 			billRows.push({
 				id: bill.bill_id,
@@ -340,6 +351,8 @@ async function run() {
 				last_action_date: bill.last_action_date || null,
 				change_hash: bill.change_hash,
 				bill_text_url: billTextUrl,
+				committee_id: committee?.committee_id || null,
+				committee_name: committee?.name || null,
 				is_archived: bill.status === 4 || bill.status === 5,
 				updated_at: new Date().toISOString()
 			});
@@ -388,6 +401,13 @@ async function run() {
 	const uniqueSponsorMembers = [
 		...new Map(sponsorMemberRows.map((m) => [m.id, m])).values()
 	];
+
+	// Committees first — bills.committee_id references them.
+	const uniqueCommittees = [...new Map(committeeRows.map((c) => [c.id, c])).values()];
+	if (uniqueCommittees.length) {
+		console.log(`   Upserting ${uniqueCommittees.length} committees...`);
+		await batchUpsert('committees', uniqueCommittees, 'id', 75);
+	}
 
 	console.log(`   Upserting ${billRows.length} bills...`);
 	await batchUpsert('bills', billRows, 'id', 75);
