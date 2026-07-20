@@ -7,6 +7,7 @@
     "bootstrap": "node pipeline/bootstrap.js",
     "sync-test": "node pipeline/test-sync.js",
     "score": "node pipeline/score.js",
+    "finance": "node pipeline/finance.js",
     "test": "node --test \"pipeline/test/*.test.js\""
   },
   "devDependencies": {
