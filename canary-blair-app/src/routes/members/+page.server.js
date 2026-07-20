@@ -9,10 +9,20 @@ export async function load({ url }) {
 	const search = url.searchParams.get('q') || '';
 	const sort = url.searchParams.get('sort') || 'score';
 	const tier = url.searchParams.get('tier') || 'all';
+	// Default to sitting legislators; ?show=former reveals the permanent record
+	// of those who lost or retired (we shall never forget).
+	const show = url.searchParams.get('show') || 'current';
 
 	let query = supabase
 		.from('members')
-		.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier, canary_badges, canary_votes_scored, next_election');
+		.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier, canary_badges, canary_votes_scored, next_election, is_current');
+
+	if (show === 'current') {
+		query = query.eq('is_current', true);
+	} else if (show === 'former') {
+		query = query.eq('is_current', false);
+	}
+	// show === 'all' → no filter
 
 	if (chamber !== 'all') {
 		query = query.eq('chamber', chamber);
@@ -42,6 +52,6 @@ export async function load({ url }) {
 
 	return {
 		members: members || [],
-		filters: { chamber, party, search, sort, tier }
+		filters: { chamber, party, search, sort, tier, show }
 	};
 }

@@ -53,7 +53,10 @@
 						<span class="sep">·</span>
 						<span>District {member.district}</span>
 					{/if}
-					{#if member.next_election}
+					{#if member.is_current === false}
+						<span class="sep">·</span>
+						<span class="former-year">Former legislator</span>
+					{:else if member.next_election}
 						<span class="sep">·</span>
 						<span class="election-year">Up in {member.next_election}</span>
 					{/if}
@@ -256,6 +259,13 @@
 	.election-year {
 		color: var(--color-accent);
 		font-weight: 600;
+	}
+	.former-year {
+		color: var(--color-text-dim);
+		font-weight: 600;
+		text-transform: uppercase;
+		font-size: 0.75rem;
+		letter-spacing: 0.04em;
 	}
 
 	.section {

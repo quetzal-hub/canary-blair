@@ -49,6 +49,12 @@
 		{ value: '5', label: '🐀 Rat in the Capitol' },
 		{ value: '6', label: '☠️ Owned' }
 	];
+
+	const showOptions = [
+		{ value: 'current', label: 'Sitting' },
+		{ value: 'former', label: 'Former' },
+		{ value: 'all', label: 'All-time' }
+	];
 </script>
 
 <svelte:head>
@@ -57,10 +63,25 @@
 
 <div class="container">
 	<h1>Members</h1>
-	<p class="subtitle">{data.members.length} legislators — sorted by Canary Score</p>
+	<p class="subtitle">
+		{data.members.length}
+		{data.filters.show === 'former' ? 'former' : data.filters.show === 'all' ? 'current & former' : 'sitting'}
+		legislators — sorted by Canary Score
+	</p>
 
 	<div class="filters">
 		<div class="filter-row">
+			<div class="filter-group">
+				{#each showOptions as opt}
+					<button
+						class="filter-btn"
+						class:active={data.filters.show === opt.value}
+						onclick={() => updateFilter('show', opt.value)}
+					>
+						{opt.label}
+					</button>
+				{/each}
+			</div>
 			<div class="filter-group">
 				{#each chamberOptions as opt}
 					<button

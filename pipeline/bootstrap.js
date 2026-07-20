@@ -179,16 +179,21 @@ async function run() {
 
 	console.log(`   Session: ${currentSession.session_name} (ID: ${currentSession.session_id})`);
 
-	await upsert('sessions', {
-		id: currentSession.session_id,
-		year_start: currentSession.year_start,
-		year_end: currentSession.year_end,
-		name: currentSession.session_name,
-		special: currentSession.special === 1,
-		sine_die: currentSession.sine_die === 1,
-		prior: false,
-		updated_at: new Date().toISOString()
-	});
+	// Record every session (honoring LegiScan's prior flag), not just the current
+	// one — so cross-session features have the history from day one. The daily
+	// sync keeps these reconciled going forward.
+	for (const s of sessions) {
+		await upsert('sessions', {
+			id: s.session_id,
+			year_start: s.year_start,
+			year_end: s.year_end,
+			name: s.session_name,
+			special: s.special === 1,
+			sine_die: s.sine_die === 1,
+			prior: s.prior === 1,
+			updated_at: new Date().toISOString()
+		});
+	}
 
 	// ── Step 2: Check for available datasets ──────
 	console.log('📦 Checking available datasets...');

@@ -97,7 +97,36 @@ function extractDistricts(geos) {
 	};
 }
 
-export async function load({ url }) {
+// Best-effort in-isolate cache of the (static) address → districts geocoding
+// step, so a burst of identical lookups hits the external Census/Nominatim APIs
+// only once. This protects us from getting rate-limited/IP-blocked by those
+// services under load. Member data is always fetched fresh below, so scores
+// never go stale. Hard rate limiting is best done at the edge via Cloudflare's
+// WAF/rate-limiting rules — this is defense in depth, not the whole story.
+const GEO_TTL_MS = 1000 * 60 * 60 * 24; // districts for an address don't change day to day
+const geoCache = new Map();
+
+async function resolveDistricts(street, city, zip) {
+	const key = `${street}|${city}|${zip}`.toLowerCase().trim();
+	const hit = geoCache.get(key);
+	if (hit && Date.now() - hit.at < GEO_TTL_MS) return hit.value;
+
+	let result;
+	if (street) {
+		result = await lookupByAddress(street, city, zip);
+		if (!result) result = await lookupByCityZip(city || '', zip || ''); // fallback
+	} else {
+		result = await lookupByCityZip(city, zip);
+	}
+
+	if (result) {
+		if (geoCache.size > 1000) geoCache.clear(); // crude unbounded-growth guard
+		geoCache.set(key, { at: Date.now(), value: result });
+	}
+	return result;
+}
+
+export async function load({ url, setHeaders }) {
 	const street = url.searchParams.get('street') || '';
 	const city = url.searchParams.get('city') || '';
 	const zip = url.searchParams.get('zip') || '';
@@ -107,19 +136,7 @@ export async function load({ url }) {
 	}
 
 	try {
-		let result;
-
-		if (street) {
-			// Full address → exact match via Census
-			result = await lookupByAddress(street, city, zip);
-			if (!result) {
-				// Fallback: try city/zip if street lookup fails
-				result = await lookupByCityZip(city || '', zip || '');
-			}
-		} else {
-			// City/zip only → approximate via Nominatim + Census coordinates
-			result = await lookupByCityZip(city, zip);
-		}
+		const result = await resolveDistricts(street, city, zip);
 
 		if (!result) {
 			return { members: null, address: null, error: `No matching location found in ${STATE_CONFIG.name}. Check your spelling and try again.` };
@@ -139,6 +156,10 @@ export async function load({ url }) {
 			.from('members')
 			.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier, canary_badges, canary_votes_scored, next_election')
 			.in('district', districts);
+
+		// Let the edge cache absorb repeated identical lookups for a short window.
+		// Short enough that weekly score updates still show through quickly.
+		setHeaders({ 'cache-control': 'public, max-age=900' });
 
 		return {
 			members: members || [],
