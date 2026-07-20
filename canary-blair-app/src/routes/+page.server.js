@@ -19,14 +19,14 @@ export async function load() {
 		// Top 3 Canary Scores
 		supabase
 			.from('members')
-			.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier')
+			.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier, canary_votes_scored, canary_badges')
 			.not('canary_score', 'is', null)
 			.order('canary_score', { ascending: false })
 			.limit(3),
 		// Bottom 3 Canary Scores
 		supabase
 			.from('members')
-			.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier')
+			.select('id, full_name, party, chamber, district, photo_url, canary_score, canary_tier, canary_votes_scored, canary_badges')
 			.not('canary_score', 'is', null)
 			.order('canary_score', { ascending: true })
 			.limit(3),

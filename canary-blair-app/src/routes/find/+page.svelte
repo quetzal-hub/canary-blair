@@ -8,7 +8,6 @@
 	let city = $state($pageStore.url.searchParams.get('city') || '');
 	let zip = $state($pageStore.url.searchParams.get('zip') || '');
 	let street = $state($pageStore.url.searchParams.get('street') || '');
-	let showStreet = $state(!!$pageStore.url.searchParams.get('street'));
 	let searching = $state(false);
 
 	async function handleSubmit(e) {

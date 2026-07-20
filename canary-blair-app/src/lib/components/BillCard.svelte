@@ -1,7 +1,7 @@
 <script>
 	import BillStatusBadge from './BillStatusBadge.svelte';
 	import TagPill from './TagPill.svelte';
-	import { formatDate, formatDateShort, daysSince, truncate, getBillImpactTier } from '$lib/utils.js';
+	import { formatDateShort, daysSince, truncate, getBillImpactTier } from '$lib/utils.js';
 
 	let { bill } = $props();
 

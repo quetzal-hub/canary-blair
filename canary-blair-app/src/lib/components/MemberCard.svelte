@@ -45,6 +45,9 @@
 		<div class="tier-row {tier.cssClass}">
 			<span class="tier-emoji">{tier.emoji}</span>
 			<span class="tier-name">{tier.name}</span>
+			{#if member.canary_votes_scored}
+				<span class="vote-count" title="Scored votes behind this number">· {member.canary_votes_scored} votes</span>
+			{/if}
 		</div>
 	{:else}
 		<div class="tier-row tier-unscored">
@@ -158,6 +161,7 @@
 	}
 	.tier-emoji { font-size: 0.875rem; }
 	.tier-name { font-weight: 500; }
+	.vote-count { color: var(--color-text-dim); font-size: 0.75rem; }
 	.tier-1 .tier-name { color: var(--color-score-excellent); }
 	.tier-2 .tier-name { color: var(--color-score-good); }
 	.tier-3 .tier-name { color: var(--color-score-neutral); }

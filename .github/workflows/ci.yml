@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pipeline:
+    name: Pipeline (scoring engine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pipeline dependencies
+        run: npm ci
+      - name: Run scoring engine tests
+        run: npm test
+
+  app:
+    name: App (build + lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: canary-blair-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install app dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          # RLS-protected public values; real deploy sets its own. Build only
+          # needs them to be defined, not valid.
+          PUBLIC_SUPABASE_URL: https://example.supabase.co
+          PUBLIC_SUPABASE_ANON_KEY: build-time-placeholder

@@ -24,6 +24,7 @@
 				<a href="/find">Find Yours</a>
 				<a href="/bills">Bills</a>
 				<a href="/members">Members</a>
+				<a href="/feeds">Feeds</a>
 				<a href="/about">About</a>
 				<a href="https://ovr.sos.wv.gov/Register/Landing" target="_blank" rel="noopener noreferrer" class="register-link">Register to Vote</a>
 			</div>
@@ -49,6 +50,12 @@
 			</a>
 			<p class="footer-sub">
 				Named for the canary and the mountain. Free forever. No tracking. No ads.
+			</p>
+			<p class="footer-legal">
+				Legislative data from <a href="https://legiscan.com/" target="_blank" rel="noopener noreferrer">LegiScan</a>.
+				Canary Scores are calculated from the public record and AI bill classification, which is
+				imperfect — every score links to the votes behind it.
+				<a href="/feeds">RSS feeds</a>.
 			</p>
 		</div>
 	</footer>
@@ -162,6 +169,18 @@
 		margin-top: var(--space-xs);
 		color: var(--color-text-dim);
 		font-size: 0.75rem;
+	}
+	.footer-legal {
+		margin-top: var(--space-sm);
+		color: var(--color-text-dim);
+		font-size: 0.6875rem;
+		line-height: 1.6;
+		max-width: 640px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.footer-legal a {
+		color: var(--color-text-muted);
 	}
 
 	@media (max-width: 480px) {
