@@ -102,6 +102,9 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - **Contact your rep** — email (opens with a short editable template) and phone, right on each profile, plus a one-tap copy-link share
 - **Open Data (`/data`)** — download the entire scoreboard as CSV or JSON; no key, no scraping
 - **Shareable profiles** — Open Graph tags so a pasted member link unfurls with their score and tier
+- **Committees (`/committees`)** — where bills quietly die; browse committees by bill count and how many bills never made it out
+
+
 
 **About (`/about`)**
 - Mission statement and the Blair Mountain history
@@ -328,6 +331,7 @@ schema/006_canary_score_rpc.sql          # bulk score-write RPC
 schema/007_score_history.sql             # permanent per-session score history
 schema/008_ai_overrides.sql              # human override columns for AI misclassifications
 schema/009_current_members.sql           # sitting vs. former legislator flag
+schema/010_committees.sql                # committees + bill→committee association
 ```
 
 Paste each file's contents into the SQL editor and click **Run**. After each file, you should see no errors. After `001_initial.sql`, you can verify the tables were created by checking the **Table Editor** in your Supabase dashboard.

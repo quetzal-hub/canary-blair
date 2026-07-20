@@ -55,6 +55,7 @@
 			</p>
 			<nav class="footer-links" aria-label="More">
 				<a href="/stats">Stats</a>
+				<a href="/committees">Committees</a>
 				<a href="/compare">Compare</a>
 				<a href="/feeds">Feeds</a>
 				<a href="/data">Open Data</a>

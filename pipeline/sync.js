@@ -426,6 +426,18 @@ class SyncEngine {
       : null;
     const billTextUrl = latestText?.state_link || latestText?.url || bill.url || null;
 
+    // Capture the committee the bill sits in (LegiScan reports this on the bill).
+    // Often where a bill dies — surfaced in the /committees view.
+    const committee = bill.committee && bill.committee.committee_id ? bill.committee : null;
+    if (committee) {
+      await this.db.upsert('committees', {
+        id:      committee.committee_id,
+        name:    committee.name,
+        chamber: committee.chamber || (committee.chamber_id === 2 ? 'S' : committee.chamber_id === 1 ? 'H' : null),
+        updated_at: new Date().toISOString(),
+      });
+    }
+
     // Upsert core bill record
     await this.db.upsert('bills', {
       id:               bill.bill_id,
@@ -444,6 +456,8 @@ class SyncEngine {
       last_action_date: bill.last_action_date || null,
       change_hash:      bill.change_hash,
       bill_text_url:    billTextUrl,
+      committee_id:     committee?.committee_id || null,
+      committee_name:   committee?.name || null,
       is_archived:      bill.status === 4 || bill.status === 5,
       updated_at:       new Date().toISOString(),
     });
