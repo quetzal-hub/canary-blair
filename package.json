@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "bootstrap": "node pipeline/bootstrap.js",
-    "sync-test": "node pipeline/test-sync.js"
+    "sync-test": "node pipeline/test-sync.js",
+    "score": "node pipeline/score.js",
+    "test": "node --test \"pipeline/test/*.test.js\""
   },
   "devDependencies": {
     "adm-zip": "^0.5.0",

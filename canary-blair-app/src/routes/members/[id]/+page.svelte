@@ -4,7 +4,9 @@
 	import PartyBadge from '$lib/components/PartyBadge.svelte';
 	import BillStatusBadge from '$lib/components/BillStatusBadge.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
-	import { chamberLabel, partyLabel, formatDate, voteColor, getTierData, getBadgeData, getBillImpactTier, scoreColor } from '$lib/utils.js';
+	import ScoreBreakdown from '$lib/components/ScoreBreakdown.svelte';
+	import ScoreHistory from '$lib/components/ScoreHistory.svelte';
+	import { chamberLabel, partyLabel, voteColor, getTierData, getBadgeData, getBillImpactTier, scoreColor, effectiveAlignment, effectiveImpactTier, isReviewed } from '$lib/utils.js';
 
 	const alignmentLabels = {
 		for_people: { label: 'For People', cssClass: 'alignment-people' },
@@ -14,7 +16,6 @@
 
 	let { data } = $props();
 	const member = data.member;
-	const summary = data.summary;
 
 	const tier = $derived(getTierData(member.canary_tier));
 
@@ -27,6 +28,7 @@
 
 <svelte:head>
 	<title>{member.full_name} — Canary Blair</title>
+	<link rel="alternate" type="application/rss+xml" title="{member.full_name} — every vote" href="/feeds/member/{member.id}.xml" />
 </svelte:head>
 
 <div class="container">
@@ -71,7 +73,7 @@
 				<div class="score-details">
 					<div class="tier-label">{tier.emoji} {tier.name.toUpperCase()}</div>
 					<div class="tier-tagline">"{tier.tagline}"</div>
-					<div class="score-meta">Canary Score: {member.canary_score} / 100 · {member.canary_votes_scored} scored votes</div>
+					<div class="score-meta">Canary Score: {member.canary_score} / 100 · calculated from {member.canary_votes_scored} scored votes</div>
 				</div>
 			</div>
 		{:else}
@@ -86,7 +88,20 @@
 				</div>
 			</div>
 		{/if}
+		{#if member.canary_score != null}
+			<p class="score-disclaimer">
+				This score is a mathematical product of {member.full_name}'s own voting and sponsorship record,
+				classified by AI. It is not an editorial judgment, and AI classification is imperfect — expand
+				the breakdown below to check every vote yourself.
+				{#if data.breakdown.anyReviewed}<span class="reviewed-note"> ✏️ Some bills in this score were manually reviewed and corrected.</span>{/if}
+			</p>
+		{/if}
 	</section>
+
+	{#if member.canary_score != null}
+		<ScoreHistory history={data.scoreHistory} />
+		<ScoreBreakdown breakdown={data.breakdown} memberName={member.full_name} />
+	{/if}
 
 	<!-- Badges -->
 	{#if member.canary_badges?.length}
@@ -127,8 +142,9 @@
 			<ul class="sponsored-list">
 				{#each data.sponsored as s}
 					{#if s.bills}
-						{@const al = s.bills.ai_alignment ? alignmentLabels[s.bills.ai_alignment] : null}
-						{@const imp = getBillImpactTier(s.bills.ai_impact_tier)}
+						{@const alKey = effectiveAlignment(s.bills)}
+						{@const al = alKey ? alignmentLabels[alKey] : null}
+						{@const imp = getBillImpactTier(effectiveImpactTier(s.bills))}
 						<li>
 							<a href="/bills/{s.bills.id}">
 								<span class="bill-num">{s.bills.bill_number}</span>
@@ -154,8 +170,9 @@
 			<h2>Vote History</h2>
 			<div class="vote-history">
 				{#each data.votes as vote}
-					{@const val = vote.bills?.ai_alignment ? alignmentLabels[vote.bills.ai_alignment] : null}
-					{@const vimp = getBillImpactTier(vote.bills?.ai_impact_tier)}
+					{@const valKey = effectiveAlignment(vote.bills)}
+					{@const val = valKey ? alignmentLabels[valKey] : null}
+					{@const vimp = getBillImpactTier(effectiveImpactTier(vote.bills))}
 					<div class="vote-row">
 						<span class="vote-badge {voteColor(vote.vote_value)}">{vote.vote_text}</span>
 						{#if val}
@@ -163,6 +180,9 @@
 						{/if}
 						{#if vimp}
 							<span class="impact-badge">{vimp.emoji}</span>
+						{/if}
+						{#if isReviewed(vote.bills)}
+							<span class="reviewed-mark" title="A human reviewed and corrected this bill's classification">✏️</span>
 						{/if}
 						{#if vote.bills}
 							<a href="/bills/{vote.bills.id}" class="vote-bill">
@@ -174,10 +194,15 @@
 				{/each}
 			</div>
 			<Pagination page={data.votePage} totalPages={data.voteTotalPages} onchange={changeVotePage} />
+			<a class="rss-follow" href="/feeds/member/{member.id}.xml">🔔 Follow {member.full_name}'s votes by RSS — anonymous, no signup</a>
 		</section>
 	{/if}
 
-	<p class="score-note">Score calculated from AI-tagged bill votes. Updated weekly.</p>
+	<p class="score-note">
+		Score calculated from AI-classified bill votes and sponsorships. Updated weekly. Bill classification
+		is AI-generated and may not reflect every nuance. Legislative data from
+		<a href="https://legiscan.com/" target="_blank" rel="noopener noreferrer">LegiScan</a>.
+	</p>
 </div>
 
 <style>
@@ -426,6 +451,27 @@
 		color: var(--color-text-dim);
 		text-align: center;
 		padding: var(--space-lg) 0;
+		line-height: 1.6;
+	}
+
+	.score-disclaimer {
+		margin-top: var(--space-md);
+		font-size: 0.75rem;
+		color: var(--color-text-dim);
+		line-height: 1.6;
+	}
+	.reviewed-note {
+		color: var(--color-accent);
+	}
+	.reviewed-mark {
+		font-size: 0.75rem;
+		flex-shrink: 0;
+	}
+	.rss-follow {
+		display: inline-block;
+		margin-top: var(--space-md);
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
 	}
 
 	@media (max-width: 600px) {

@@ -70,13 +70,20 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - Score breakdown showing how many bills they were scored on, and how they voted on people-vs-capital bills
 - Earned badges displayed as labeled pills
 - AI-generated voting pattern summary — "How [Name] votes" in plain language
-- **Ask a Question** — free-form Q&A powered by Claude; ask anything about this legislator's record and get a data-grounded answer
+- **"How we got this number"** — an expandable audit trail listing every scored vote with the exact points it added or subtracted, so anyone can verify the score is math, not opinion
+- **Score-over-time chart** — a permanent history of the legislator's Canary Score; once a session adjourns, that score is locked and can never be revised away
 - Complete sponsored bills list
 - Paginated full vote history, filterable by Yea / Nay / NV / Absent
+- Bills whose AI classification a human reviewed and corrected are marked with a ✏️ note
 
-**Session Digests (`/digests`)**
-- AI-generated summaries of legislative activity
-- Available in Daily, Weekly, Monthly, and Yearly views
+**RSS Feeds (`/feeds`)**
+- Anonymous, account-free way to follow the legislature — the right alert channel for a no-tracking project
+- Per-legislator feed (every vote as it happens), per-topic feed (`/feeds/tag/water.xml`), and a legislative-digest feed
+- Auto-discoverable via `<link rel="alternate">` on member pages
+
+**Session Digests**
+- AI-generated summaries of legislative activity, displayed on the home page
+- Generated daily and weekly by the AI worker cron
 - "What happened this week in the WV legislature" — written for humans, not lawyers
 
 **Find My Rep (`/find`)**
@@ -96,14 +103,14 @@ Every WV legislator gets a **Canary Score** from 0–100, calculated mathematica
 
 | Score | Tier | Name | Tagline |
 |-------|------|------|---------|
-| 85–100 | ✨ | Mountaineer | *"Votes like they actually live here."* |
-| 65–84 | 🌱 | Friend of the Holler | *"Not perfect, but they're trying."* |
-| 45–64 | 🌫️ | The Fence Sitter | *"Which way is the wind blowing today?"* |
-| 25–44 | 🪨 | The Company Man | *"Reliable — just not for you."* |
-| 10–24 | 🐀 | The Rat in the Capitol | *"Actively working against the people who elected them."* |
-| 0–9 | ☠️ | Owned | *"Congratulations to their donors on their investment."* |
+| 80–100 | ✨ | Mountaineer | *"Votes like they actually live here."* |
+| 60–79 | 🌱 | Friend of the Holler | *"Not perfect, but they're trying."* |
+| 45–59 | 🌫️ | Weathervane | *"Blows whichever way the lobby goes."* |
+| 35–44 | 🪨 | Company Man | *"Reliable — just not for you."* |
+| 20–34 | 🐀 | Rat in the Capitol | *"Actively working against the people who elected them."* |
+| 0–19 | ☠️ | Owned | *"Congratulations to their donors on their investment."* |
 
-**How it works:** Bills are classified as FOR_PEOPLE or FOR_CAPITAL using their AI-generated tags. Votes on those bills are scored (+2 / -2 for Yea/Nay, -0.5 for not showing up). Bills with strong AI-identified beneficiaries get a 1.5× weight multiplier. The raw score is normalized to 0–100. Members need at least 20 scored votes before receiving a score. Scores are recalculated weekly from live data.
+**How it works:** Every bill gets an AI-assigned alignment (`for_people`, `for_capital`, or `neutral`) and an impact tier from 1 (Landmark, weighted 5×) to 6 (Ceremonial, weighted 0.25×). Votes on aligned bills earn or lose points scaled by the bill's impact weight; skipping a vote costs a small penalty. Sponsorship counts even more than voting — primary sponsors get 3× weight, cosponsors 1.5× — because putting your name on a bill is a stronger signal than going along with a floor vote. The combined raw score is normalized to 0–100. Members need at least 20 scored votes before receiving a score, and scores are recalculated automatically whenever bills change and weekly on a full refresh.
 
 **Badges** are awarded in addition to the tier score:
 - 🦅 **Lone Canary** — Voted against their party's majority on a people-first bill at least 3 times
@@ -161,12 +168,18 @@ canary-blair/
 │   ├── 002_scoring_columns.sql   # Canary Score columns for members table
 │   ├── 003_text_change_detection.sql
 │   ├── 004_active_bills_view_archived.sql
-│   └── 005_refresh_passed_bills_view.sql
+│   ├── 005_refresh_passed_bills_view.sql
+│   └── 006_canary_score_rpc.sql  # Bulk score-write RPC
 │
 ├── pipeline/
+│   ├── lib/
+│   │   ├── scoring.js            # Shared Canary Score engine (single source of truth)
+│   │   └── state-config.js       # Per-state config (name, industries, tier names) — fork here
+│   ├── test/
+│   │   └── scoring.test.js       # Unit tests locking down the scoring math
 │   ├── sync.js                   # LegiScan → Supabase sync (Cloudflare Worker)
 │   ├── ai-worker.js              # AI summarization worker (Cloudflare Worker)
-│   ├── score.js                  # Canary Score calculation script
+│   ├── score.js                  # Canary Score CLI runner (uses lib/scoring.js)
 │   ├── summarize.js              # Bill summarization logic
 │   ├── profiles.js               # Member profile generation logic
 │   ├── bootstrap.js              # One-time full data load
@@ -193,6 +206,8 @@ canary-blair/
         │       ├── BillCard.svelte
         │       ├── BillStatusBadge.svelte
         │       ├── MemberCard.svelte
+        │       ├── ScoreBreakdown.svelte   # "How we got this number" audit trail
+        │       ├── ScoreHistory.svelte      # Score-over-time sparkline
         │       ├── VoteTable.svelte
         │       ├── DigestCard.svelte
         │       ├── TagPill.svelte
@@ -216,14 +231,18 @@ canary-blair/
             │       ├── +page.svelte  # Member profile
             │       └── +page.server.js
             ├── find/
-            │   ├── +page.svelte      # Find my rep
+            │   ├── +page.svelte      # Find my rep (address → Census geocoder → districts)
             │   └── +page.server.js
+            ├── feeds/
+            │   ├── +page.svelte              # Human-readable RSS index
+            │   ├── digest.xml/+server.js     # Legislative digest feed
+            │   ├── member/[id].xml/+server.js # Per-legislator vote feed
+            │   └── tag/[tag].xml/+server.js   # Per-topic bill feed
             ├── digests/
             │   └── +page.svelte
             ├── about/
             │   └── +page.svelte
             └── api/
-                ├── ask/+server.js         # Claude-powered Q&A endpoint
                 └── sync-status/+server.js # Last sync run info
 ```
 
@@ -278,6 +297,9 @@ schema/002_scoring_columns.sql
 schema/003_text_change_detection.sql
 schema/004_active_bills_view_archived.sql
 schema/005_refresh_passed_bills_view.sql
+schema/006_canary_score_rpc.sql          # bulk score-write RPC
+schema/007_score_history.sql             # permanent per-session score history
+schema/008_ai_overrides.sql              # human override columns for AI misclassifications
 ```
 
 Paste each file's contents into the SQL editor and click **Run**. After each file, you should see no errors. After `001_initial.sql`, you can verify the tables were created by checking the **Table Editor** in your Supabase dashboard.
@@ -352,10 +374,18 @@ node pipeline/test-ai.js
 
 ### Canary Score recalculation
 
-Recalculates scores for all members based on the latest bill classifications and vote records. Run weekly, or any time you want fresh scores.
+Recalculates scores for all members based on the latest bill classifications and vote records. Run weekly, or any time you want fresh scores. The CLI and the deployed worker share the exact same engine ([pipeline/lib/scoring.js](pipeline/lib/scoring.js)), so local and production scores can never drift.
 
 ```bash
-node pipeline/score.js
+npm run score
+```
+
+### Scoring engine tests
+
+The scoring algorithm is locked down by unit tests with hand-computed fixtures. Run them before touching anything in `pipeline/lib/scoring.js`:
+
+```bash
+npm test
 ```
 
 ### Cron schedule (production)
@@ -365,10 +395,13 @@ When deployed to Cloudflare, the pipeline runs on this schedule automatically:
 | Time (UTC) | Job |
 |-----------|-----|
 | 6:00am daily | LegiScan sync |
-| 7:00am daily | Daily session digest |
+| 7:00am daily | Sweep of unsummarized bills (retries failures/deferrals), then daily digest |
 | 7:00am Monday | Weekly session digest |
-| 8:00am Sunday | Member AI profile refresh |
-| 9:00am Sunday | Canary Score recalculation |
+| 7:00am 1st of month | Monthly session digest |
+| 7:00am Jan 2 | Yearly session digest |
+| 8:00am Sunday | Canary Score recalculation + member AI profile refresh |
+
+Scores are also recalculated automatically whenever the sync worker hands new bills to the AI worker. Each AI worker invocation summarizes at most 25 bills; anything beyond that is picked up by the daily sweep, so a huge sync day can't blow past Cloudflare Worker limits.
 
 ---
 
@@ -415,7 +448,6 @@ Then in the **Cloudflare Pages** dashboard, set these environment variables unde
 ```
 PUBLIC_SUPABASE_URL=        your Supabase project URL
 PUBLIC_SUPABASE_ANON_KEY=   your Supabase anon key (safe to expose — RLS protects data)
-ANTHROPIC_API_KEY=          your Anthropic key (for the server-side /api/ask endpoint)
 ```
 
 ### Trigger a manual sync to verify
@@ -455,7 +487,7 @@ PUBLIC_SUPABASE_ANON_KEY=   # Anon key from Supabase — safe to expose; RLS enf
 
 **Security rules:**
 - `SUPABASE_SERVICE_KEY` is only used in Workers (server-side). It bypasses Row Level Security. Never expose it in the frontend.
-- `ANTHROPIC_API_KEY` is only used in Workers and in the SvelteKit server endpoint (`/api/ask`). It is never sent to the browser.
+- `ANTHROPIC_API_KEY` is only used in the AI worker (server-side). It is never sent to the browser.
 - `PUBLIC_*` variables are intentionally client-safe. They are embedded in the frontend bundle.
 
 ---
@@ -526,14 +558,33 @@ Canary Blair collects no personal data. Period.
 - No third-party scripts that phone home
 - No logging of IP addresses or search queries
 
-The Q&A feature (`/api/ask`) sends your typed question to the Anthropic API server-side. The question is not stored. No identifying information about you is included in the API call.
-
 All data displayed on this site comes from public government records via LegiScan.
 
 ---
 
+## Run It For Your Own State
+
+Canary Blair is built to be forked. LegiScan covers all 50 states, and everything
+West-Virginia-specific — the state code, the demonym, the extractive industries the
+score watches, and the Canary tier names/taglines — lives in one file:
+[pipeline/lib/state-config.js](pipeline/lib/state-config.js). Change those values,
+update the `STATE` var in [wrangler-sync.toml](wrangler-sync.toml), swap the imagery
+and copy on the About page, and you have an accountability tracker for your own
+legislature in a weekend. The scoring engine and AI prompts read from the config, so
+you never touch the algorithm.
+
+## Continuous Integration
+
+Every push and pull request runs [.github/workflows/ci.yml](.github/workflows/ci.yml):
+the scoring-engine unit tests (`npm test`) and the app's lint + production build. The
+scoring tests are the guardrail on the math that assigns public labels to elected
+officials — they must stay green.
+
 ## License
 
-Canary Blair is free and open source. Use it, fork it, run it for your own state.
+Canary Blair is licensed under the **GNU Affero General Public License v3.0**
+([LICENSE](LICENSE)). AGPL was chosen deliberately: because the whole point is
+transparency, any fork — including one run as a hosted service — must keep its source
+open. Use it, fork it, run it for your own state; just keep it free for the people.
 
 The canary is still singing. Build accordingly.

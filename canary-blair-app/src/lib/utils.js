@@ -154,7 +154,8 @@ const BADGES = {
 	'corporate-friend': { emoji: '💰', name: "Never Met a Corporation They Didn't Like", desc: '90%+ of corporate-interest votes were Yea.' },
 	'lockstep': { emoji: '🔒', name: 'Lockstep', desc: 'Voted with their party 95%+ of the time.' },
 	'water-protector': { emoji: '💧', name: 'Water Protector', desc: 'Consistently votes for water and environment protections, and against bills that weaken them.' },
-	'friend-of-worker': { emoji: '👷', name: 'Friend of the Worker', desc: 'Consistently votes for worker protections, and against bills that weaken them.' }
+	'friend-of-worker': { emoji: '👷', name: 'Friend of the Worker', desc: 'Consistently votes for worker protections, and against bills that weaken them.' },
+	'most-improved': { emoji: '📈', name: 'Most Improved', desc: 'Canary Score rose 15 or more points since last session.' }
 };
 
 export function getBadgeData(badgeId) {
@@ -188,3 +189,43 @@ export function scoreColor(score) {
 	if (score >= 20) return 'score-bad';
 	return 'score-terrible';
 }
+
+// ─────────────────────────────────────────
+// Score audit math — MIRRORS pipeline/lib/scoring.js.
+// Kept in sync by pipeline/test/scoring.test.js on the engine side; if you
+// change the point rules or weights there, change them here too. (The app and
+// pipeline are separate packages, so they can't share one import.)
+// ─────────────────────────────────────────
+
+export const TIER_WEIGHTS = { 1: 5, 2: 3, 3: 2, 4: 1, 5: 0.5, 6: 0.25 };
+
+/** Effective (post-human-override) bill values. */
+export function effectiveAlignment(bill) {
+	return bill?.ai_alignment_override ?? bill?.ai_alignment ?? null;
+}
+export function effectiveImpactTier(bill) {
+	return bill?.ai_impact_tier_override ?? bill?.ai_impact_tier ?? null;
+}
+export function isReviewed(bill) {
+	return bill?.ai_alignment_override != null || bill?.ai_impact_tier_override != null;
+}
+export function billWeight(bill) {
+	return TIER_WEIGHTS[effectiveImpactTier(bill)] ?? 1;
+}
+
+/** Signed points a single vote contributes. Positive = helped, negative = hurt. */
+export function votePoints(alignment, voteValue, weight) {
+	if (alignment === 'for_people') {
+		if (voteValue === 1) return weight;
+		if (voteValue === 2) return -weight;
+		return -weight * 0.25;
+	}
+	if (alignment === 'for_capital') {
+		if (voteValue === 1) return -weight;
+		if (voteValue === 2) return weight;
+		return -weight * 0.25;
+	}
+	return 0;
+}
+
+export const SPONSOR_WEIGHTS = { 1: 3, 2: 1.5 };

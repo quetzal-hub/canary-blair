@@ -4,7 +4,9 @@ compatibility_date = "2024-01-01"
 
 [triggers]
 crons = [
-  "0 7 * * *",
-  "0 7 * * 1",
-  "0 8 * * 0",
+  "0 7 * * *",  # daily: sweep unsummarized bills + daily digest
+  "0 7 * * 1",  # Monday: weekly digest
+  "0 7 1 * *",  # 1st of month: monthly digest
+  "0 7 2 1 *",  # Jan 2: yearly digest
+  "0 8 * * 0",  # Sunday: full score + profile refresh
 ]
