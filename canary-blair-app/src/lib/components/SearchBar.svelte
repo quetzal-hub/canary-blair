@@ -7,6 +7,7 @@
 		type="search"
 		bind:value
 		{placeholder}
+		aria-label={placeholder}
 		{oninput}
 	/>
 </div>
@@ -27,8 +28,7 @@
 	input::placeholder {
 		color: var(--color-text-dim);
 	}
-	input:focus {
-		outline: none;
+	input:focus-visible {
 		border-color: var(--color-accent);
 	}
 </style>

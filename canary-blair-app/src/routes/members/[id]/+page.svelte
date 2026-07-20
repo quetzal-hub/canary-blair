@@ -70,11 +70,15 @@
 	<section class="section score-section">
 		{#if member.canary_score != null && tier}
 			<div class="score-hero {tier.cssClass}">
-				<div class="score-circle {scoreColor(member.canary_score)}">
-					<span class="score-big">{member.canary_score}</span>
+				<div
+					class="score-circle {scoreColor(member.canary_score)}"
+					role="img"
+					aria-label="Canary Score {member.canary_score} out of 100, tier {tier.name}"
+				>
+					<span class="score-big" aria-hidden="true">{member.canary_score}</span>
 				</div>
 				<div class="score-details">
-					<div class="tier-label">{tier.emoji} {tier.name.toUpperCase()}</div>
+					<div class="tier-label"><span aria-hidden="true">{tier.emoji}</span> {tier.name.toUpperCase()}</div>
 					<div class="tier-tagline">"{tier.tagline}"</div>
 					<div class="score-meta">Canary Score: {member.canary_score} / 100 · calculated from {member.canary_votes_scored} scored votes</div>
 				</div>
@@ -311,6 +315,13 @@
 	.score-bad { background: var(--color-score-bad); }
 	.score-terrible { background: var(--color-score-terrible); }
 	.score-unscored { background: var(--color-text-dim); }
+
+	/* Dark numerals on the light-background tiers for legible contrast (WCAG) */
+	.score-good .score-big,
+	.score-neutral .score-big,
+	.score-poor .score-big {
+		color: #1a1a1a;
+	}
 
 	.score-details {
 		flex: 1;
