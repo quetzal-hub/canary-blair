@@ -103,6 +103,7 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - **Open Data (`/data`)** — download the entire scoreboard as CSV or JSON; no key, no scraping
 - **Shareable profiles** — Open Graph tags so a pasted member link unfurls with their score and tier
 - **Committees (`/committees`)** — where bills quietly die; browse committees by bill count and how many bills never made it out
+- **Money-in-politics** — each profile can show total campaign contributions ("who funds them") from FollowTheMoney, clearly labeled as context and kept out of the score
 
 
 
@@ -332,6 +333,7 @@ schema/007_score_history.sql             # permanent per-session score history
 schema/008_ai_overrides.sql              # human override columns for AI misclassifications
 schema/009_current_members.sql           # sitting vs. former legislator flag
 schema/010_committees.sql                # committees + bill→committee association
+schema/011_finance.sql                   # campaign-finance columns (money-in-politics)
 ```
 
 Paste each file's contents into the SQL editor and click **Run**. After each file, you should see no errors. After `001_initial.sql`, you can verify the tables were created by checking the **Table Editor** in your Supabase dashboard.
@@ -411,6 +413,17 @@ Recalculates scores for all members based on the latest bill classifications and
 ```bash
 npm run score
 ```
+
+### Campaign finance sync (optional)
+
+Populates each legislator's total campaign contributions from FollowTheMoney, matched on the `followthemoney_eid` we already sync. **Dry-run by default** — because this is money data on named politicians, it prints the raw API responses and the totals it extracted and writes nothing until you confirm and pass `--commit`:
+
+```bash
+FTM_API_KEY=... npm run finance            # dry run: inspect a few, write nothing
+FTM_API_KEY=... node pipeline/finance.js --commit   # write to the database
+```
+
+The exact FollowTheMoney total field isn't publicly documented, so verify the dry-run numbers against the FollowTheMoney entity page before committing; adjust `extractTotalRaised()` in `pipeline/finance.js` if needed.
 
 ### Scoring engine tests
 
@@ -511,6 +524,9 @@ AI_QUEUE_URL=           # Set this AFTER deploying the AI worker (its worker URL
 
 # ── AI Worker ────────────────────────────────────────────────
 ANTHROPIC_API_KEY=      # From console.anthropic.com
+
+# ── Campaign finance (optional) ──────────────────────────────
+FTM_API_KEY=            # Free key from followthemoney.org — enables the money-in-politics sync
 
 # ── SvelteKit Frontend ───────────────────────────────────────
 PUBLIC_SUPABASE_URL=        # Same as SUPABASE_URL — safe to expose, used client-side

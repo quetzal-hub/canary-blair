@@ -145,6 +145,22 @@
 		<ScoreBreakdown breakdown={data.breakdown} memberName={member.full_name} />
 	{/if}
 
+	<!-- Who funds them -->
+	{#if member.finance_total_raised != null}
+		<section class="section">
+			<h2>Who funds {member.full_name}</h2>
+			<div class="finance">
+				<span class="finance-amount">${member.finance_total_raised.toLocaleString()}</span>
+				<span class="finance-label">in total campaign contributions</span>
+			</div>
+			<p class="finance-note">
+				Source: <a href={member.finance_source_url} target="_blank" rel="noopener noreferrer">FollowTheMoney</a>{member.finance_matched_by === 'name' ? ' (matched by name — approximate)' : ''}.
+				This is context, <strong>not</strong> part of the Canary Score — the score is math on votes and
+				sponsorship only. We show it so you can decide for yourself whether the money and the votes line up.
+			</p>
+		</section>
+	{/if}
+
 	<!-- Contact -->
 	{#if member.email || member.phone}
 		<section class="section">
@@ -375,6 +391,28 @@
 		margin-top: var(--space-sm);
 		font-size: 0.75rem;
 		color: var(--color-text-dim);
+	}
+
+	.finance {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-sm);
+		flex-wrap: wrap;
+		padding: var(--space-md) 0;
+	}
+	.finance-amount {
+		font-size: 2rem;
+		font-weight: 800;
+		color: var(--color-accent);
+	}
+	.finance-label {
+		color: var(--color-text-muted);
+		font-size: 0.9375rem;
+	}
+	.finance-note {
+		font-size: 0.8125rem;
+		color: var(--color-text-dim);
+		line-height: 1.6;
 	}
 
 	.section {
