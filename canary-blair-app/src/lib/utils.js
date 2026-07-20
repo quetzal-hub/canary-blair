@@ -163,6 +163,7 @@ const BADGES = {
 	'lockstep': { emoji: '🔒', name: 'Lockstep', desc: 'Voted with their party 95%+ of the time.' },
 	'water-protector': { emoji: '💧', name: 'Water Protector', desc: 'Consistently votes for water and environment protections, and against bills that weaken them.' },
 	'friend-of-worker': { emoji: '👷', name: 'Friend of the Worker', desc: 'Consistently votes for worker protections, and against bills that weaken them.' },
+	'renewables-champion': { emoji: '🌞', name: 'Renewables Champion', desc: 'Consistently votes for clean and renewable energy, and against bills that prop up fossil fuels at its expense.' },
 	'most-improved': { emoji: '📈', name: 'Most Improved', desc: 'Canary Score rose 15 or more points since last session.' }
 };
 

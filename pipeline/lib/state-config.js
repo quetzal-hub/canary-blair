@@ -24,8 +24,21 @@ export const STATE_CONFIG = {
 
 	// Industries whose interests the score treats as "capital." Surfaced in the
 	// summarization prompt so the model knows which local sectors to watch.
-	// (WV: coal and gas. TX would be oil/gas; a farm state might be agribusiness.)
-	extractiveIndustries: 'coal, gas, and energy companies',
+	// Keep this to genuinely extractive/fossil interests — clean energy is
+	// handled separately by energyGuidance below.
+	// (WV: coal, oil, gas. TX would be the same; a farm state might be agribusiness.)
+	extractiveIndustries: 'coal, oil, gas, and other fossil-fuel interests',
+
+	// How the AI should weigh energy bills. Fossil-fuel extraction is capital,
+	// but clean/renewable energy that benefits residents is for_people — judge
+	// the beneficiary, not the sector label. Injected into the alignment prompt.
+	energyGuidance:
+		'Judge energy bills by who benefits, not by the word "energy." Fossil-fuel ' +
+		'extraction (coal, oil, gas) is for_capital. But clean and renewable energy — ' +
+		'solar, wind, efficiency, storage, grid modernization — that lowers costs, ' +
+		'creates local jobs, or cuts pollution for residents is for_people, even though ' +
+		'it involves energy companies. A bill that props up fossil fuels by undercutting ' +
+		'renewables is for_capital.',
 
 	// A one-clause reminder of local stakes, injected into the "who is hurt"
 	// guidance so environmental/health harms are weighted appropriately.

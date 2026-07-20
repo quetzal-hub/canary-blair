@@ -42,6 +42,7 @@ export const TIER_NAMES = Object.fromEntries(TIER_THRESHOLDS.map((t) => [t.tier,
 export const BADGE_NAMES = {
 	'water-protector': 'Water Protector',
 	'friend-of-worker': 'Friend of the Worker',
+	'renewables-champion': 'Renewables Champion (votes for clean energy, against fossil-fuel giveaways)',
 	'lone-canary': 'Lone Canary (votes against own party for the people)',
 	'corporate-friend': "Never Met a Corporation They Didn't Like",
 	'most-improved': 'Most Improved (score up 15+ since last session)',
@@ -188,6 +189,8 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
 		let waterCapitalYeaW = 0, waterCapitalTotalW = 0, waterCapitalCount = 0;
 		let workerPeopleYeaW = 0, workerPeopleTotalW = 0, workerPeopleCount = 0;
 		let workerCapitalYeaW = 0, workerCapitalTotalW = 0, workerCapitalCount = 0;
+		let cleanPeopleYeaW = 0, cleanPeopleTotalW = 0, cleanPeopleCount = 0;
+		let cleanCapitalYeaW = 0, cleanCapitalTotalW = 0, cleanCapitalCount = 0;
 
 		for (const v of myVotes) {
 			const bill = billMap.get(v.bill_id);
@@ -216,12 +219,15 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
 			const tags = bill.tags;
 			const isWaterEnv = tags.includes('water') || tags.includes('environment');
 			const isWorker = tags.includes('workers');
+			const isCleanEnergy = tags.includes('clean-energy');
 			if (bill.forPeople) {
 				if (isWaterEnv) { waterPeopleCount++; waterPeopleTotalW += w; if (v.vote_value === 1) waterPeopleYeaW += w; }
 				if (isWorker) { workerPeopleCount++; workerPeopleTotalW += w; if (v.vote_value === 1) workerPeopleYeaW += w; }
+				if (isCleanEnergy) { cleanPeopleCount++; cleanPeopleTotalW += w; if (v.vote_value === 1) cleanPeopleYeaW += w; }
 			} else if (bill.forCapital) {
 				if (isWaterEnv) { waterCapitalCount++; waterCapitalTotalW += w; if (v.vote_value === 1) waterCapitalYeaW += w; }
 				if (isWorker) { workerCapitalCount++; workerCapitalTotalW += w; if (v.vote_value === 1) workerCapitalYeaW += w; }
+				if (isCleanEnergy) { cleanCapitalCount++; cleanCapitalTotalW += w; if (v.vote_value === 1) cleanCapitalYeaW += w; }
 			}
 		}
 
@@ -229,6 +235,13 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
 		const waterCapitalRate = waterCapitalCount >= 5 ? waterCapitalYeaW / waterCapitalTotalW : 1;
 		const workerPeopleRate = workerPeopleCount >= 5 ? workerPeopleYeaW / workerPeopleTotalW : 0;
 		const workerCapitalRate = workerCapitalCount >= 5 ? workerCapitalYeaW / workerCapitalTotalW : 1;
+
+		// Renewables Champion. Clean-energy is a narrower category than water or
+		// workers, so we require a strong pro-renewable record (≥5 for_people
+		// clean-energy bills, 80%+ weighted Yea) and only apply the anti-renewable
+		// gate once there are enough for_capital clean-energy votes (≥3) to judge.
+		const cleanPeopleRate = cleanPeopleCount >= 5 ? cleanPeopleYeaW / cleanPeopleTotalW : 0;
+		const cleanCapitalOk = cleanCapitalCount < 3 || cleanCapitalYeaW / cleanCapitalTotalW <= 0.5;
 
 		// Sponsorship scoring
 		const mySponsorships = memberSponsorships.get(member.id) || [];
@@ -260,6 +273,7 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
 		if (totalScoredRollCalls > 0 && partyAlignCount / totalScoredRollCalls >= 0.95) badges.push('lockstep');
 		if (waterPeopleRate >= 0.8 && waterCapitalRate <= 0.5 && waterPeopleCount >= 5) badges.push('water-protector');
 		if (workerPeopleRate >= 0.8 && workerCapitalRate <= 0.5 && workerPeopleCount >= 5) badges.push('friend-of-worker');
+		if (cleanPeopleRate >= 0.8 && cleanPeopleCount >= 5 && cleanCapitalOk) badges.push('renewables-champion');
 
 		// Most Improved — needs a prior-session score to compare against.
 		if (canaryScore != null && priorScores) {
