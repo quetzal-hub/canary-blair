@@ -82,9 +82,10 @@
 			<h2>Your Representatives</h2>
 			<div class="member-list">
 				{#each data.members as member (member.id)}
-					<MemberCard {member} />
+					<MemberCard {member} showPin />
 				{/each}
 			</div>
+			<p class="save-hint">Tap ☆ on a card to save your reps — kept in this browser only, nothing sent to us.</p>
 		{:else}
 			<p class="empty">No legislators found for this location. This may be a data issue — try adding your street address for a more precise lookup.</p>
 		{/if}
@@ -212,6 +213,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-md);
+	}
+	.save-hint {
+		margin-top: var(--space-md);
+		font-size: 0.8125rem;
+		color: var(--color-text-dim);
 	}
 
 	.empty {

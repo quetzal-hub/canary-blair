@@ -1,12 +1,19 @@
 <script>
 	import PartyBadge from './PartyBadge.svelte';
+	import PinButton from './PinButton.svelte';
 	import { chamberLabel, getTierData, getBadgeData, scoreColor } from '$lib/utils.js';
 
-	let { member } = $props();
+	let { member, showPin = false } = $props();
 
 	const tier = $derived(getTierData(member.canary_tier));
 </script>
 
+<div class="member-card-wrap">
+{#if showPin}
+	<div class="pin-slot">
+		<PinButton memberId={member.member_id || member.id} memberName={member.full_name} compact />
+	</div>
+{/if}
 <a href="/members/{member.member_id || member.id}" class="member-card">
 	<div class="card-top">
 		{#if member.photo_url}
@@ -72,8 +79,18 @@
 		</div>
 	{/if}
 </a>
+</div>
 
 <style>
+	.member-card-wrap {
+		position: relative;
+	}
+	.pin-slot {
+		position: absolute;
+		top: 6px;
+		left: 6px;
+		z-index: 2;
+	}
 	.member-card {
 		display: block;
 		padding: var(--space-md);

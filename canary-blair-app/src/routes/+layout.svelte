@@ -26,7 +26,7 @@
 				<a href="/find">Find Yours</a>
 				<a href="/bills">Bills</a>
 				<a href="/members">Members</a>
-				<a href="/feeds">Feeds</a>
+				<a href="/my-reps">My Reps</a>
 				<a href="/about">About</a>
 				<a href={STATE_CONFIG.voterRegistrationUrl} target="_blank" rel="noopener noreferrer" class="register-link">Register to Vote</a>
 			</div>
@@ -53,6 +53,12 @@
 			<p class="footer-sub">
 				Named for the canary and the mountain. Free forever. No tracking. No ads.
 			</p>
+			<nav class="footer-links" aria-label="More">
+				<a href="/stats">Stats</a>
+				<a href="/compare">Compare</a>
+				<a href="/feeds">Feeds</a>
+				<a href="/data">Open Data</a>
+			</nav>
 			<p class="footer-legal">
 				Legislative data from <a href="https://legiscan.com/" target="_blank" rel="noopener noreferrer">LegiScan</a>.
 				Canary Scores are calculated from the public record and AI bill classification, which is
@@ -171,6 +177,18 @@
 		margin-top: var(--space-xs);
 		color: var(--color-text-dim);
 		font-size: 0.75rem;
+	}
+	.footer-links {
+		margin-top: var(--space-sm);
+		display: flex;
+		gap: var(--space-md);
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+	.footer-links a {
+		color: var(--color-text-muted);
+		font-size: 0.8125rem;
+		font-weight: 500;
 	}
 	.footer-legal {
 		margin-top: var(--space-sm);
