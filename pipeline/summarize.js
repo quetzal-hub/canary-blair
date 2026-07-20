@@ -21,6 +21,7 @@
  */
 import 'dotenv/config';
 import { STATE_CONFIG } from './lib/state-config.js';
+import { CLAUDE_MODEL, THINKING_DISABLED, extractText } from './lib/ai-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -36,8 +37,7 @@ if (!ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 	process.exit(1);
 }
 
-// Haiku for bulk summarization — fast and cheap
-const MODEL = 'claude-haiku-4-5-20251001';
+// Model is set in lib/ai-config.js (shared with the AI worker).
 const MAX_TOKENS = 1000;
 
 // ─────────────────────────────────────────
@@ -115,8 +115,9 @@ async function callClaude(prompt) {
 			'anthropic-version': '2023-06-01'
 		},
 		body: JSON.stringify({
-			model: MODEL,
+			model: CLAUDE_MODEL,
 			max_tokens: MAX_TOKENS,
+			thinking: THINKING_DISABLED,
 			messages: [{ role: 'user', content: prompt }]
 		})
 	});
@@ -125,7 +126,7 @@ async function callClaude(prompt) {
 		throw new Error(`Claude API error ${res.status}: ${err}`);
 	}
 	const data = await res.json();
-	return data.content[0].text;
+	return extractText(data);
 }
 
 // ─────────────────────────────────────────
