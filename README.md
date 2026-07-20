@@ -564,14 +564,69 @@ All data displayed on this site comes from public government records via LegiSca
 
 ## Run It For Your Own State
 
-Canary Blair is built to be forked. LegiScan covers all 50 states, and everything
-West-Virginia-specific — the state code, the demonym, the extractive industries the
-score watches, and the Canary tier names/taglines — lives in one file:
-[pipeline/lib/state-config.js](pipeline/lib/state-config.js). Change those values,
-update the `STATE` var in [wrangler-sync.toml](wrangler-sync.toml), swap the imagery
-and copy on the About page, and you have an accountability tracker for your own
-legislature in a weekend. The scoring engine and AI prompts read from the config, so
-you never touch the algorithm.
+Canary Blair is built to be forked. LegiScan covers all 50 states, and every
+West-Virginia-specific value flows from a single file —
+[pipeline/lib/state-config.js](pipeline/lib/state-config.js). The scoring engine, the
+AI prompts, the sync worker, and the entire frontend all read from it, so retargeting
+to another state is a config edit plus a rewrite of the editorial copy. You never touch
+the scoring algorithm.
+
+### Step 1 — Fork and edit the config
+
+Fork the repo and open [pipeline/lib/state-config.js](pipeline/lib/state-config.js).
+Every field below feeds real behavior:
+
+| Field | What it drives | Example (Texas) |
+|-------|---------------|-----------------|
+| `code` | LegiScan state code — the sync + bootstrap query, and the address lookup | `'TX'` |
+| `name` | Site copy and every AI prompt | `'Texas'` |
+| `demonym` / `demonymSingular` | AI prompt phrasing ("ordinary Texans…") | `'Texans'` / `'Texas resident'` |
+| `legislatureName`, `lowerChamber`, `upperChamber` | Labels | `'Texas Legislature'`, `'House of Representatives'`, `'Senate'` |
+| `voterRegistrationUrl` | The "Register to Vote" link in the nav | your Secretary of State URL |
+| `extractiveIndustries` | Injected into the alignment prompt so the AI knows which local sectors count as "capital" | `'oil and gas operators'` |
+| `localStakesNote` | One clause in the "who is hurt" guidance that raises the weight on your state's known harms | your state's environmental/health context |
+| `tiers` | The six Canary tier names, emoji, taglines, and score thresholds — shown on cards, profiles, and the About page, and written to the database | rename to your state's voice |
+
+**On the tiers:** keep the six-tier structure (the color design and the score math assume
+six ranks 1–6), but the names and taglines are your editorial voice — "Mountaineer" and
+"Friend of the Holler" are West Virginia. You can also shift the `min` thresholds; the
+frontend colors and the tier-boundary test both derive from them, so nothing else needs
+to change.
+
+### Step 2 — Rewrite the editorial content
+
+The config can't write your state's story. These are intentional prose/imagery, not
+config, so edit them by hand:
+
+- **[about/+page.svelte](canary-blair-app/src/routes/about/+page.svelte)** — the Blair
+  Mountain history, the canary metaphor, and the mission. Replace with your state's own
+  labor/civic history.
+- **[static/images/](canary-blair-app/static/images/)** — the Blair Mountain photos.
+  Swap in your own (and update the `<figcaption>`s and `alt` text).
+- **[+layout.svelte](canary-blair-app/src/routes/+layout.svelte)** — the footer tagline
+  ("Named for the canary and the mountain") and, if you rename the project, the brand text.
+- The project name "Canary Blair" itself appears in page `<title>`s and the AI prompts'
+  persona line — rename if you want your own identity.
+
+### Step 3 — Stand up your own infrastructure
+
+Follow the [Local Setup](#local-setup) and [Deployment](#deployment) sections with your
+own accounts: a new Supabase project (apply all migrations in [schema/](schema/)), your
+own [LegiScan](https://legiscan.com/legiscan) key (the free tier covers any single state),
+an Anthropic key, and your own Cloudflare project. Set the same environment variables —
+nothing there is WV-specific.
+
+### Step 4 — Bootstrap and verify
+
+```bash
+npm run bootstrap          # full initial load for your state (uses STATE_CONFIG.code)
+node pipeline/test-ai.js   # summarize a few bills — check the AI names your state
+npm run score              # calculate Canary Scores
+npm test                   # tier-boundary + scoring tests (config-aware, should stay green)
+```
+
+If the AI summaries mention your state and your industries, and the scores populate,
+you have an accountability tracker for your own legislature.
 
 ## Continuous Integration
 

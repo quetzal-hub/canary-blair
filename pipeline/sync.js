@@ -17,9 +17,11 @@
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
+import { STATE_CONFIG } from './lib/state-config.js';
+
 const CONFIG = {
   LEGISCAN_API_BASE: 'https://api.legiscan.com/',
-  STATE: 'WV',
+  STATE: STATE_CONFIG.code,
   // Bill status codes from LegiScan
   STATUS: {
     1: 'Introduced',

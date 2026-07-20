@@ -48,20 +48,22 @@ const MEMBER = { id: 1, full_name: 'Test Member', party: 'D', chamber: 'H' };
 
 // ─── tier boundaries ───────────────────────────────────────
 
-test('tier thresholds map scores to the right tiers', () => {
-	assert.equal(getTier(100).name, 'Mountaineer');
-	assert.equal(getTier(80).name, 'Mountaineer');
-	assert.equal(getTier(79).name, 'Friend of the Holler');
-	assert.equal(getTier(60).name, 'Friend of the Holler');
-	assert.equal(getTier(59).name, 'Weathervane');
-	assert.equal(getTier(45).name, 'Weathervane');
-	assert.equal(getTier(44).name, 'Company Man');
-	assert.equal(getTier(35).name, 'Company Man');
-	assert.equal(getTier(34).name, 'Rat in the Capitol');
-	assert.equal(getTier(20).name, 'Rat in the Capitol');
-	assert.equal(getTier(19).name, 'Owned');
-	assert.equal(getTier(0).name, 'Owned');
+test('tier thresholds map scores to the right tier ranks', () => {
+	// Assert against the config's own thresholds (not hardcoded WV names) so this
+	// test stays valid if the project is retargeted to another state.
 	assert.equal(TIER_THRESHOLDS.length, 6);
+	for (const t of TIER_THRESHOLDS) {
+		assert.equal(getTier(t.min).tier, t.tier, `score ${t.min} should be tier ${t.tier}`);
+		assert.equal(getTier(t.min).name, t.name);
+	}
+	// A score just below a tier's floor drops to the next tier down.
+	const sorted = [...TIER_THRESHOLDS].sort((a, b) => b.min - a.min);
+	for (let i = 0; i < sorted.length - 1; i++) {
+		assert.equal(getTier(sorted[i].min - 1).tier, sorted[i + 1].tier);
+	}
+	// Full score is the top tier; zero is the bottom.
+	assert.equal(getTier(100).tier, 1);
+	assert.equal(getTier(0).tier, 6);
 });
 
 // ─── core score math ───────────────────────────────────────

@@ -5,5 +5,5 @@ compatibility_date = "2024-01-01"
 [triggers]
 crons = ["0 6 * * *"]
 
-[vars]
-STATE = "WV"
+# The target state is now set in pipeline/lib/state-config.js (STATE_CONFIG.code),
+# the single source shared with the scoring engine, AI prompts, and frontend.

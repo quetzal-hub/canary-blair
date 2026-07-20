@@ -1,5 +1,6 @@
 <script>
 	import '../app.css';
+	import { STATE_CONFIG } from '$stateConfig';
 
 	let { children } = $props();
 </script>
@@ -26,7 +27,7 @@
 				<a href="/members">Members</a>
 				<a href="/feeds">Feeds</a>
 				<a href="/about">About</a>
-				<a href="https://ovr.sos.wv.gov/Register/Landing" target="_blank" rel="noopener noreferrer" class="register-link">Register to Vote</a>
+				<a href={STATE_CONFIG.voterRegistrationUrl} target="_blank" rel="noopener noreferrer" class="register-link">Register to Vote</a>
 			</div>
 		</div>
 	</nav>

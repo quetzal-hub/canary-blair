@@ -19,6 +19,9 @@ export const STATE_CONFIG = {
 	lowerChamber: 'House of Delegates',
 	upperChamber: 'Senate',
 
+	// Where residents register to vote (linked in the site nav).
+	voterRegistrationUrl: 'https://ovr.sos.wv.gov/Register/Landing',
+
 	// Industries whose interests the score treats as "capital." Surfaced in the
 	// summarization prompt so the model knows which local sectors to watch.
 	// (WV: coal and gas. TX would be oil/gas; a farm state might be agribusiness.)

@@ -12,6 +12,8 @@
  *   node pipeline/profiles.js --limit=10         # cap at 10 members
  */
 import 'dotenv/config';
+import { TIER_NAMES, BADGE_NAMES } from './lib/scoring.js';
+import { STATE_CONFIG } from './lib/state-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -41,27 +43,8 @@ const limitArg = args.find((a) => a.startsWith('--limit='));
 const targetMemberId = memberIdArg ? parseInt(memberIdArg.split('=')[1]) : null;
 const limit = limitArg ? parseInt(limitArg.split('=')[1]) : null;
 
-// ─────────────────────────────────────────
-// TIER DATA (matches score.js)
-// ─────────────────────────────────────────
-
-const TIER_NAMES = {
-	1: 'Mountaineer',
-	2: 'Friend of the Holler',
-	3: 'Weathervane',
-	4: 'Company Man',
-	5: 'Rat in the Capitol',
-	6: 'Owned'
-};
-
-const BADGE_NAMES = {
-	'water-protector': 'Water Protector',
-	'friend-of-worker': 'Friend of the Worker',
-	'lone-canary': 'Lone Canary (votes against own party for the people)',
-	'corporate-friend': 'Never Met a Corporation They Didn\'t Like',
-	'lockstep': 'Lockstep (votes with party 95%+)',
-	'ghost': 'Ghost (absent/not voting 25%+)'
-};
+// TIER_NAMES and BADGE_NAMES are imported from the shared scoring engine
+// (which derives tier names from state-config.js) — no local duplicates.
 
 // ─────────────────────────────────────────
 // SUPABASE HELPERS
@@ -190,9 +173,9 @@ function buildPrompt(member, summary, sponsoredBills, keyVotes) {
 		? capitalSponsor.slice(0, 10).join('\n')
 		: 'None.';
 
-	return `You are Canary Blair — a civic accountability tool for West Virginia residents.
+	return `You are Canary Blair — a civic accountability tool for ${STATE_CONFIG.name} residents.
 Write an honest, factual profile of this legislator's record. Be direct and clear.
-Write for ordinary West Virginians, not political insiders.
+Write for ordinary ${STATE_CONFIG.demonym}, not political insiders.
 
 HOW SCORING WORKS:
 The Canary Score (0-100) is weighted by bill impact. A landmark bill that affects thousands
