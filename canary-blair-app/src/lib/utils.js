@@ -131,21 +131,29 @@ export function truncate(text, maxLen = 120) {
 }
 
 /**
- * Canary Score tier data from tier number
+ * Canary Score tier data — derived from the shared per-state config so the
+ * frontend, the scoring engine, and the AI prompts all use one set of tier
+ * names/taglines. Edit pipeline/lib/state-config.js to change them everywhere.
  */
-const TIERS = [
-	null,
-	{ name: 'Mountaineer', emoji: '✨', tagline: 'Votes like they actually live here.', cssClass: 'tier-1' },
-	{ name: 'Friend of the Holler', emoji: '🌱', tagline: "Not perfect, but they're trying.", cssClass: 'tier-2' },
-	{ name: 'Weathervane', emoji: '🌫️', tagline: 'Blows whichever way the lobby goes.', cssClass: 'tier-3' },
-	{ name: 'Company Man', emoji: '🪨', tagline: 'Reliable — just not for you.', cssClass: 'tier-4' },
-	{ name: 'Rat in the Capitol', emoji: '🐀', tagline: 'Actively working against the people who elected them.', cssClass: 'tier-5' },
-	{ name: 'Owned', emoji: '☠️', tagline: 'Congratulations to their donors on their investment.', cssClass: 'tier-6' }
-];
+import { STATE_CONFIG } from '$stateConfig';
+
+const TIERS = [null];
+for (const t of [...STATE_CONFIG.tiers].sort((a, b) => a.tier - b.tier)) {
+	TIERS[t.tier] = { name: t.name, emoji: t.emoji, tagline: t.tagline, cssClass: `tier-${t.tier}` };
+}
 
 export function getTierData(tierNum) {
 	if (!tierNum || tierNum < 1 || tierNum > 6) return null;
 	return TIERS[tierNum];
+}
+
+/** Tier number (1-6) a score falls into, per the config's thresholds. */
+export function tierForScore(score) {
+	if (score == null) return null;
+	for (const t of STATE_CONFIG.tiers) {
+		if (score >= t.min) return t.tier;
+	}
+	return STATE_CONFIG.tiers[STATE_CONFIG.tiers.length - 1].tier;
 }
 
 const BADGES = {
@@ -180,14 +188,20 @@ export function getBillImpactTier(tierNum) {
 	return BILL_IMPACT_TIERS[tierNum];
 }
 
+// Tier rank (1-6) → color class. The rank is state-agnostic; the thresholds
+// that map a score to a rank come from the config via tierForScore().
+const TIER_COLOR = {
+	1: 'score-excellent',
+	2: 'score-good',
+	3: 'score-neutral',
+	4: 'score-poor',
+	5: 'score-bad',
+	6: 'score-terrible'
+};
+
 export function scoreColor(score) {
-	if (score == null) return 'score-unscored';
-	if (score >= 80) return 'score-excellent';
-	if (score >= 60) return 'score-good';
-	if (score >= 45) return 'score-neutral';
-	if (score >= 35) return 'score-poor';
-	if (score >= 20) return 'score-bad';
-	return 'score-terrible';
+	const tier = tierForScore(score);
+	return tier == null ? 'score-unscored' : TIER_COLOR[tier];
 }
 
 // ─────────────────────────────────────────

@@ -20,6 +20,7 @@
  *   node pipeline/summarize.js --limit=50         # cap at 50 bills
  */
 import 'dotenv/config';
+import { STATE_CONFIG } from './lib/state-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -174,9 +175,9 @@ function buildPrompt(bill, sponsors, billText) {
 		? `\nFull Bill Text:\n${billText}`
 		: `\nDescription: ${bill.description || 'No description available.'}`;
 
-	return `You are Canary Blair — a civic accountability tool for West Virginia residents.
+	return `You are Canary Blair — a civic accountability tool for ${STATE_CONFIG.name} residents.
 Your job is to translate government legislation into plain, honest language that any
-West Virginia resident can understand, regardless of education level.
+${STATE_CONFIG.demonymSingular} can understand, regardless of education level.
 
 Be direct. Be clear. Be unflinching. Don't soften corporate or political interests.
 Don't editorialize — just explain what is actually happening.
@@ -187,7 +188,7 @@ water contamination, worker safety, etc. A bill that reduces environmental regul
 HURTS the environment and the people who depend on clean air and water — say so clearly.
 Do not bury environmental or public health harms in vague language.
 
-Here is a West Virginia bill:
+Here is a ${STATE_CONFIG.name} bill:
 
 Bill Number: ${bill.bill_number}
 Title: ${bill.title}
@@ -201,8 +202,8 @@ Respond ONLY with a JSON object. No preamble, no markdown fences.
   "critical_points": ["Array of up to 10 bullet points highlighting key provisions, dollar amounts, deadlines, thresholds, exemptions, and other concrete details from the bill. Each bullet should be one clear sentence. For short bills, fewer points are fine — aim for 10 on longer bills."],
   "who_benefits": "1-3 sentences. Who gains from this bill passing? Be specific — name industries, groups, or interests when relevant.",
   "who_is_hurt": "1-3 sentences. Who loses or bears costs if this passes? Consider environmental harm, reduced oversight, public health risks, lost worker protections, and community impacts. If no one is clearly hurt, say so honestly.",
-  "alignment": "One of: 'for_people' (primarily benefits ordinary WV residents, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics.",
-  "impact_tier": "Integer 1-6 rating how consequential this bill is. This is INDEPENDENT of alignment — it measures magnitude of real-world impact, not direction. 1 = LANDMARK: Transformative structural change affecting thousands of WV residents (e.g. gutting clean water protections statewide, major healthcare expansion, sweeping education overhaul). 2 = HIGH IMPACT: Significant real-world consequences for communities, health, environment, or livelihoods (e.g. weakening mine safety rules, expanding Medicaid eligibility, major tax shifts). 3 = MEANINGFUL: Clear benefit or harm but narrower scope — affects a specific group, region, or sector (e.g. teacher pay raise, single-industry regulation change). 4 = ROUTINE: Standard legislation with modest impact (e.g. updating licensing requirements, adjusting administrative procedures). 5 = MINOR: Small procedural tweaks, technical amendments, or housekeeping changes. 6 = CEREMONIAL: Resolutions, namings, commemorations, symbolic acts with no policy impact. Be honest — most bills are tier 3-5. Reserve tier 1 for bills that would fundamentally change how West Virginia works. A bill that touches water, environment, or public health in a state with known contamination problems should be weighted MORE seriously.",
+  "alignment": "One of: 'for_people' (primarily benefits ordinary ${STATE_CONFIG.demonym}, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries such as ${STATE_CONFIG.extractiveIndustries}, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics.",
+  "impact_tier": "Integer 1-6 rating how consequential this bill is. This is INDEPENDENT of alignment — it measures magnitude of real-world impact, not direction. 1 = LANDMARK: Transformative structural change affecting thousands of ${STATE_CONFIG.demonym} (e.g. gutting clean water protections statewide, major healthcare expansion, sweeping education overhaul). 2 = HIGH IMPACT: Significant real-world consequences for communities, health, environment, or livelihoods (e.g. weakening mine safety rules, expanding Medicaid eligibility, major tax shifts). 3 = MEANINGFUL: Clear benefit or harm but narrower scope — affects a specific group, region, or sector (e.g. teacher pay raise, single-industry regulation change). 4 = ROUTINE: Standard legislation with modest impact (e.g. updating licensing requirements, adjusting administrative procedures). 5 = MINOR: Small procedural tweaks, technical amendments, or housekeeping changes. 6 = CEREMONIAL: Resolutions, namings, commemorations, symbolic acts with no policy impact. Be honest — most bills are tier 3-5. Reserve tier 1 for bills that would fundamentally change how ${STATE_CONFIG.name} works. A bill that touches water, environment, or public health in ${STATE_CONFIG.localStakesNote} should be weighted MORE seriously.",
   "tags": ["array", "of", "topic", "tags"]
 }
 

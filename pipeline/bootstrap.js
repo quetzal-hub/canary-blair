@@ -10,6 +10,7 @@
  */
 import 'dotenv/config';
 import AdmZip from 'adm-zip';
+import { STATE_CONFIG } from './lib/state-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG & VALIDATION
@@ -26,7 +27,7 @@ if (!LEGISCAN_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const API_BASE = 'https://api.legiscan.com/';
-const STATE = 'WV';
+const STATE = STATE_CONFIG.code;
 
 const STATUS_CODES = {
 	1: 'Introduced',

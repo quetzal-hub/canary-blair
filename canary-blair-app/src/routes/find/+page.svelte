@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page as pageStore } from '$app/stores';
 	import MemberCard from '$lib/components/MemberCard.svelte';
+	import { STATE_CONFIG } from '$stateConfig';
 
 	let { data } = $props();
 
@@ -29,7 +30,7 @@
 
 <div class="container">
 	<h1>Find Your Legislators</h1>
-	<p class="subtitle">Enter your West Virginia address to see who represents you — and how they vote.</p>
+	<p class="subtitle">Enter your {STATE_CONFIG.name} address to see who represents you — and how they vote.</p>
 
 	<form class="address-form" onsubmit={handleSubmit}>
 		<div class="form-row">

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { STATE_CONFIG } from '$stateConfig';
 
 const CENSUS_ADDRESS_URL = 'https://geocoding.geo.census.gov/geocoder/geographies/address';
 const CENSUS_COORDS_URL = 'https://geocoding.geo.census.gov/geocoder/geographies/coordinates';
@@ -22,7 +23,7 @@ const CENSUS_PARAMS = {
 
 async function lookupByAddress(street, city, zip) {
 	const params = new URLSearchParams({
-		street, city, state: 'WV', zip, ...CENSUS_PARAMS
+		street, city, state: STATE_CONFIG.code, zip, ...CENSUS_PARAMS
 	});
 	const res = await fetch(`${CENSUS_ADDRESS_URL}?${params}`);
 	if (!res.ok) return null;
@@ -39,7 +40,7 @@ async function lookupByAddress(street, city, zip) {
 async function lookupByCityZip(city, zip) {
 	// Step 1: Geocode city/zip to coordinates via Nominatim
 	const searchParams = new URLSearchParams({
-		state: 'West Virginia',
+		state: STATE_CONFIG.name,
 		country: 'US',
 		format: 'json',
 		limit: '1'
@@ -121,7 +122,7 @@ export async function load({ url }) {
 		}
 
 		if (!result) {
-			return { members: null, address: null, error: 'No matching location found in West Virginia. Check your spelling and try again.' };
+			return { members: null, address: null, error: `No matching location found in ${STATE_CONFIG.name}. Check your spelling and try again.` };
 		}
 
 		const { houseDistrict, senateDistrict, houseLabel, senateLabel } = extractDistricts(result.geos);
