@@ -2,7 +2,12 @@
 
 > *The canary watched for poison so the miners could survive. We do the same — for democracy.*
 
-**Canary Blair** is a free, anonymous, civic accountability progressive web app (PWA) for West Virginia residents. It tracks every bill, every vote, and every legislator in the WV state legislature — summarizes them in plain language using AI — and makes that information radically accessible to ordinary people with no political or legal background.
+[![CI](https://github.com/quetzal-hub/canary-blair/actions/workflows/ci.yml/badge.svg)](https://github.com/quetzal-hub/canary-blair/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+[![Built with SvelteKit](https://img.shields.io/badge/built%20with-SvelteKit-ff3e00.svg)](https://kit.svelte.dev/)
+
+**Canary Blair** is a free, anonymous, open-source civic-accountability progressive web app (PWA) for West Virginia residents. It tracks every bill, every vote, and every legislator in the WV state legislature, summarizes them in plain language using AI, and makes that information radically accessible to ordinary people with no political or legal background — then scores each legislator on how they actually vote.
 
 The name comes from two pieces of West Virginia history: **Blair Mountain** (site of the 1921 miners' uprising, the largest armed labor revolt in U.S. history) and the **coal-mine canary** (an early warning system for poison gas). Canary Blair is the spirit of that fight — still watching, still singing.
 
@@ -16,18 +21,17 @@ The name comes from two pieces of West Virginia history: **Blair Mountain** (sit
 - [Prerequisites](#prerequisites)
 - [Project Structure](#project-structure)
 - [Local Setup](#local-setup)
-  - [1. Clone the repo](#1-clone-the-repo)
-  - [2. Install dependencies](#2-install-dependencies)
-  - [3. Configure environment variables](#3-configure-environment-variables)
-  - [4. Apply the database schema](#4-apply-the-database-schema)
-  - [5. Run the initial data sync](#5-run-the-initial-data-sync)
-  - [6. Start the dev server](#6-start-the-dev-server)
 - [Running the Pipeline Locally](#running-the-pipeline-locally)
 - [Deployment](#deployment)
 - [Environment Variables Reference](#environment-variables-reference)
+- [Database Schema](#database-schema)
 - [Core Values](#core-values)
-- [Data Sources](#data-sources)
+- [Data Sources & Accuracy](#data-sources--accuracy)
 - [Privacy Policy](#privacy-policy)
+- [Run It For Your Own State](#run-it-for-your-own-state)
+- [Continuous Integration](#continuous-integration)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -83,16 +87,18 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 
 **Session Digests**
 - AI-generated summaries of legislative activity, displayed on the home page
-- Generated daily and weekly by the AI worker cron
+- Generated daily, weekly, monthly, and yearly by the AI worker cron
 - "What happened this week in the WV legislature" — written for humans, not lawyers
 
 **Find My Rep (`/find`)**
-- Look up your own representatives by district or name
+- Enter a street address and get your exact House and Senate districts via the U.S. Census Bureau geocoder — no login, nothing stored
+- Falls back to a city/ZIP approximation when no street address is given
+- Returns your legislators' cards, Canary Scores and all
 
 **About (`/about`)**
 - Mission statement and the Blair Mountain history
 - How the data is collected (LegiScan attribution)
-- How the Canary Score is calculated
+- How the Canary Score is calculated, tier by tier and badge by badge
 - Full privacy policy
 
 ---
@@ -112,14 +118,17 @@ Every WV legislator gets a **Canary Score** from 0–100, calculated mathematica
 
 **How it works:** Every bill gets an AI-assigned alignment (`for_people`, `for_capital`, or `neutral`) and an impact tier from 1 (Landmark, weighted 5×) to 6 (Ceremonial, weighted 0.25×). Votes on aligned bills earn or lose points scaled by the bill's impact weight; skipping a vote costs a small penalty. Sponsorship counts even more than voting — primary sponsors get 3× weight, cosponsors 1.5× — because putting your name on a bill is a stronger signal than going along with a floor vote. The combined raw score is normalized to 0–100. Members need at least 20 scored votes before receiving a score, and scores are recalculated automatically whenever bills change and weekly on a full refresh.
 
-**Badges** are awarded in addition to the tier score:
+**Every score is auditable and permanent.** Each member profile has a "How we got this number" breakdown listing every scored vote and the exact points it contributed — the score is math you can check, not an opinion. Scores are also snapshotted to a permanent history on every recalculation, so once a session adjourns a legislator's tier is locked and cannot be revised away. When the AI misclassifies a bill, a human can correct it with an audit-trailed, publicly-flagged override rather than silently re-running the model.
+
+**Badges** are awarded in addition to the tier score, earned over a legislator's whole career (not one session):
 - 🦅 **Lone Canary** — Voted against their party's majority on a people-first bill at least 3 times
 - 👻 **Ghost** — NV or Absent on more than 25% of all votes
 - 📈 **Most Improved** — Canary Score increased 15+ points vs. previous session
 - 💰 **Never Met a Corporation They Didn't Like** — 90%+ of corporate-interest votes were Yea
 - 🔒 **Lockstep** — Voted with their party 95%+ of the time on scored bills
-- 💧 **Water Protector** — Voted Yea on 80%+ of environment/water bills
-- 👷 **Friend of the Worker** — Voted Yea on 80%+ of workers' rights bills
+- 💧 **Water Protector** — Consistently votes for water/environment bills and against the ones that weaken them
+- 👷 **Friend of the Worker** — Consistently votes for worker-protection bills and against the ones that weaken them
+- 🌞 **Renewables Champion** — Consistently votes for clean and renewable energy, and against fossil-fuel giveaways
 
 ---
 
@@ -129,7 +138,7 @@ Every WV legislator gets a **Canary Score** from 0–100, calculated mathematica
 |-------|-----------|-----|
 | Database | [Supabase](https://supabase.com/) (PostgreSQL) | Free tier, generous limits, Postgres underneath, Row Level Security built in |
 | Sync pipeline | [Cloudflare Workers](https://workers.cloudflare.com/) + cron trigger | Free tier, runs at edge, no server to manage |
-| AI pipeline | Cloudflare Workers + [Anthropic API](https://anthropic.com/) | Same infrastructure, Claude Sonnet for summarization |
+| AI pipeline | Cloudflare Workers + [Anthropic API](https://anthropic.com/) | Same infrastructure; Claude Sonnet for bill classification, summaries, member profiles, and digests, with prompt caching on the static instructions. The model is a one-line setting in [pipeline/lib/ai-config.js](pipeline/lib/ai-config.js). |
 | Frontend | [SvelteKit](https://kit.svelte.dev/) PWA | Lightweight, fast, excellent PWA support, SSR for SEO |
 | Deployment | [Cloudflare Pages](https://pages.cloudflare.com/) | Free, global CDN, integrates with Workers |
 | Data source | [LegiScan API](https://legiscan.com/) | Free tier, covers all 50 states, reliable legislative data |
@@ -142,12 +151,12 @@ You will need accounts and API keys from these services before you can run Canar
 
 | Requirement | Where to get it | Notes |
 |------------|----------------|-------|
-| **Node.js 18+** | [nodejs.org/en/download](https://nodejs.org/en/download/) | Required to run the frontend and pipeline scripts locally |
+| **Node.js 20+** | [nodejs.org/en/download](https://nodejs.org/en/download/) | Runs the frontend and pipeline scripts. **CI and the test runner use Node 22** — the scoring tests rely on the built-in test runner's glob support (Node ≥ 21), so use 22 if you'll run `npm test`. |
 | **npm 9+** | Included with Node.js | — |
 | **Wrangler CLI** | `npm install -g wrangler` | Cloudflare's CLI for deploying and testing Workers |
 | **Supabase account** | [supabase.com](https://supabase.com/) | Free. Create a new project. You need the project URL and both the anon key and the service role key. |
 | **LegiScan API key** | [legiscan.com/legiscan](https://legiscan.com/legiscan) | Free. Register, then get your API key from your account dashboard. The free tier gives 30,000 queries/month — more than enough. |
-| **Anthropic API key** | [console.anthropic.com](https://console.anthropic.com/) | Required for AI bill summarization, member profiles, session digests, and the Q&A feature. |
+| **Anthropic API key** | [console.anthropic.com](https://console.anthropic.com/) | Powers AI bill summarization, member profiles, and session digests. |
 | **Cloudflare account** | [cloudflare.com](https://cloudflare.com/) | Free. Required for deployment only — not needed to run locally. |
 
 ---
@@ -159,9 +168,14 @@ canary-blair/
 ├── .env                          # Your secrets (never committed)
 ├── .env.example                  # Template — copy this to .env
 ├── .gitignore
+├── LICENSE                       # GNU AGPL v3.0
 ├── package.json                  # Pipeline-level package (dotenv, etc.)
 ├── wrangler-sync.toml            # Cloudflare config for the sync worker
 ├── wrangler-ai.toml              # Cloudflare config for the AI worker
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml                # CI: scoring tests + app lint/build on every push
 │
 ├── schema/
 │   ├── 001_initial.sql           # Full database schema — apply this first
@@ -169,12 +183,15 @@ canary-blair/
 │   ├── 003_text_change_detection.sql
 │   ├── 004_active_bills_view_archived.sql
 │   ├── 005_refresh_passed_bills_view.sql
-│   └── 006_canary_score_rpc.sql  # Bulk score-write RPC
+│   ├── 006_canary_score_rpc.sql  # Bulk score-write RPC
+│   ├── 007_score_history.sql     # Permanent per-session score history
+│   └── 008_ai_overrides.sql      # Human override columns for AI misclassifications
 │
 ├── pipeline/
 │   ├── lib/
 │   │   ├── scoring.js            # Shared Canary Score engine (single source of truth)
-│   │   └── state-config.js       # Per-state config (name, industries, tier names) — fork here
+│   │   ├── state-config.js       # Per-state config (name, industries, tier names) — fork here
+│   │   └── ai-config.js          # Claude model choice (one line), shared by all AI scripts
 │   ├── test/
 │   │   └── scoring.test.js       # Unit tests locking down the scoring math
 │   ├── sync.js                   # LegiScan → Supabase sync (Cloudflare Worker)
@@ -188,7 +205,8 @@ canary-blair/
 │
 └── canary-blair-app/             # SvelteKit PWA
     ├── svelte.config.js
-    ├── vite.config.js
+    ├── vite.config.js            # Aliases $stateConfig → pipeline/lib/state-config.js
+    ├── eslint.config.js
     ├── package.json
     ├── static/
     │   ├── favicon.ico
@@ -537,13 +555,15 @@ These values are reflected in every technical decision in this codebase:
 
 ---
 
-## Data Sources
+## Data Sources & Accuracy
 
-Legislative data is provided by **[LegiScan](https://legiscan.com/)**, a nonpartisan, non-governmental service that tracks legislation in all 50 U.S. states and the U.S. Congress. LegiScan provides a free API with a 30,000 query/month limit under their standard terms.
+Legislative data is provided by **[LegiScan](https://legiscan.com/)**, a nonpartisan, non-governmental service that tracks legislation in all 50 U.S. states and the U.S. Congress. LegiScan provides a free API with a 30,000 query/month limit under their standard terms. Their attribution is displayed in the app footer, as their terms require.
 
 Canary Blair's sync pipeline uses a **change-hash delta approach** — it only fetches full bill details when a bill has actually changed, keeping API usage far below the monthly limit even during active legislative sessions.
 
-Historical photo attribution for Blair Mountain imagery is included in the About page.
+**On accuracy.** Vote and sponsorship records come straight from the public legislative record and are reproduced verbatim. The Canary Score is deterministic math on that record — but the *bill classification* it depends on (alignment and impact tier) is AI-generated and imperfect. The project is built to be honest about that: every score links to the votes behind it, the disclaimer appears on every surface a score does, and a human can override a misclassified bill through an audit-trailed mechanism that displays a "manually reviewed" note. Across hundreds of votes, the pattern holds even when an individual bill is miscategorized.
+
+Historical photo attribution for the Blair Mountain imagery is included on the About page.
 
 ---
 
@@ -628,12 +648,43 @@ npm test                   # tier-boundary + scoring tests (config-aware, should
 If the AI summaries mention your state and your industries, and the scores populate,
 you have an accountability tracker for your own legislature.
 
+---
+
 ## Continuous Integration
 
-Every push and pull request runs [.github/workflows/ci.yml](.github/workflows/ci.yml):
-the scoring-engine unit tests (`npm test`) and the app's lint + production build. The
-scoring tests are the guardrail on the math that assigns public labels to elected
-officials — they must stay green.
+Every push and pull request runs [.github/workflows/ci.yml](.github/workflows/ci.yml) on
+GitHub Actions (Node 22), in two jobs:
+
+- **Pipeline** — the scoring-engine unit tests (`npm test`). These are the guardrail on
+  the math that assigns public labels to elected officials; they must stay green.
+- **App** — the frontend lint (`npm run lint`) and a full production build.
+
+The status badge at the top of this README reflects the latest run on `main`.
+
+---
+
+## Contributing
+
+Contributions are welcome — this is civic infrastructure meant to be run and improved by
+anyone.
+
+1. **Fork and branch.** Work on a feature branch, not `main`.
+2. **Keep the checks green.** Before opening a PR, run the same checks CI does:
+   ```bash
+   npm test                          # scoring engine
+   cd canary-blair-app && npm run lint && npm run build
+   ```
+3. **Never weaken the scoring guarantees.** If you change anything in
+   [pipeline/lib/scoring.js](pipeline/lib/scoring.js), add or update a test in
+   [pipeline/test/scoring.test.js](pipeline/test/scoring.test.js) that pins the new
+   behavior. The score labels real people; the math has to be defensible.
+4. **Don't commit secrets.** `.env` is git-ignored — keep it that way. Report security
+   issues privately rather than in a public issue.
+
+If you're adapting the project for another state rather than contributing upstream, see
+[Run It For Your Own State](#run-it-for-your-own-state).
+
+---
 
 ## License
 

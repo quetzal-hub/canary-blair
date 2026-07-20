@@ -22,12 +22,12 @@ import {
 	fetchAllRows
 } from './lib/scoring.js';
 import { STATE_CONFIG } from './lib/state-config.js';
+import { CLAUDE_MODEL, THINKING_DISABLED, extractText } from './lib/ai-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
 
-const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 const SUMMARIZE_MAX_TOKENS = 1000;
 const PROFILE_MAX_TOKENS = 1500;
 const DIGEST_MAX_TOKENS = 1000;
@@ -123,6 +123,7 @@ class AIWorker {
 		const body = {
 			model: CLAUDE_MODEL,
 			max_tokens: maxTokens,
+			thinking: THINKING_DISABLED,
 			messages: [{ role: 'user', content: userPrompt }]
 		};
 		if (systemPrompt) {
@@ -147,7 +148,7 @@ class AIWorker {
 			throw new Error(`Claude API error ${res.status}: ${err}`);
 		}
 		const data = await res.json();
-		return data.content[0].text;
+		return extractText(data);
 	}
 
 	async dbFetch(path, filter = '') {
