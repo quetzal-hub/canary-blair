@@ -185,7 +185,8 @@ canary-blair/
 │   ├── 005_refresh_passed_bills_view.sql
 │   ├── 006_canary_score_rpc.sql  # Bulk score-write RPC
 │   ├── 007_score_history.sql     # Permanent per-session score history
-│   └── 008_ai_overrides.sql      # Human override columns for AI misclassifications
+│   ├── 008_ai_overrides.sql      # Human override columns for AI misclassifications
+│   └── 009_current_members.sql   # Sitting vs. former legislator flag
 │
 ├── pipeline/
 │   ├── lib/
@@ -318,6 +319,7 @@ schema/005_refresh_passed_bills_view.sql
 schema/006_canary_score_rpc.sql          # bulk score-write RPC
 schema/007_score_history.sql             # permanent per-session score history
 schema/008_ai_overrides.sql              # human override columns for AI misclassifications
+schema/009_current_members.sql           # sitting vs. former legislator flag
 ```
 
 Paste each file's contents into the SQL editor and click **Run**. After each file, you should see no errors. After `001_initial.sql`, you can verify the tables were created by checking the **Table Editor** in your Supabase dashboard.

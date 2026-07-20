@@ -163,6 +163,24 @@ class DB {
     return res;
   }
 
+  /** Patch helper — updates rows matching a PostgREST filter */
+  async patch(table, filter, data) {
+    const res = await fetch(`${this.url}/rest/v1/${table}?${filter}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.key}`,
+        'apikey': this.key,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Patch ${table} error: ${err}`);
+    }
+  }
+
   /** Insert helper — ignores duplicates (for append-only tables without unique constraints) */
   async insertIgnore(table, data) {
     const res = await fetch(`${this.url}/rest/v1/${table}`, {
@@ -277,21 +295,30 @@ class SyncEngine {
 
   async syncCurrentSession() {
     const sessions = await this.legiscan.getSessionList();
+
+    // Reconcile EVERY session LegiScan knows about, honoring its prior flag.
+    // This is what makes a new legislative session get detected automatically
+    // and — critically — flips the previous session to prior=true in our DB so
+    // cross-session features (the Most Improved badge, finalize-on-sine-die,
+    // prior-session comparisons) actually work. The old code only ever wrote
+    // the current session as prior=false and never marked anything prior.
+    for (const s of sessions) {
+      await this.db.upsert('sessions', {
+        id:         s.session_id,
+        year_start: s.year_start,
+        year_end:   s.year_end,
+        name:       s.session_name,
+        special:    s.special === 1,
+        sine_die:   s.sine_die === 1,
+        prior:      s.prior === 1,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
     // Current session = most recent non-prior session
     const current = sessions
       .filter(s => !s.prior)
       .sort((a, b) => b.year_start - a.year_start)[0];
-
-    await this.db.upsert('sessions', {
-      id:           current.session_id,
-      year_start:   current.year_start,
-      year_end:     current.year_end,
-      name:         current.session_name,
-      special:      current.special === 1,
-      sine_die:     current.sine_die === 1,
-      prior:        false,
-      updated_at:   new Date().toISOString(),
-    });
 
     return { id: current.session_id, name: current.session_name, sine_die: current.sine_die === 1 };
   }
@@ -320,6 +347,7 @@ class SyncEngine {
         votesmart_id:       person.votesmart_id || null,
         opensecrets_id:     person.opensecrets_id || null,
         ballotpedia:        person.ballotpedia || null,
+        is_current:         true, // in the current session's roster
         updated_at:         new Date().toISOString(),
       });
 
@@ -333,6 +361,16 @@ class SyncEngine {
       }, 'member_id,session_id');
 
       this.stats.membersUpdated++;
+    }
+
+    // Anyone NOT in the current roster is a former legislator. Flip them to
+    // is_current=false so the directory can separate sitting members from the
+    // ones who lost or retired — without ever deleting them. We shall never forget.
+    const currentIds = people.map(p => p.people_id);
+    if (currentIds.length) {
+      await this.db.patch('members', `id=not.in.(${currentIds.join(',')})&is_current=eq.true`, {
+        is_current: false,
+      });
     }
   }
 
@@ -577,6 +615,18 @@ class SyncEngine {
 // Named export for local testing
 export { SyncEngine };
 
+/**
+ * Constant-time string comparison — avoids leaking how many leading characters
+ * of the secret matched via response timing. (Length is not hidden, which is
+ * acceptable for a fixed-length bearer secret.)
+ */
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
+
 // ─────────────────────────────────────────
 // CLOUDFLARE WORKER ENTRY POINT
 // ─────────────────────────────────────────
@@ -598,8 +648,8 @@ export default {
     if (request.method !== 'POST') {
       return new Response('Canary Blair Sync Worker. POST to trigger.', { status: 200 });
     }
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader !== `Bearer ${env.SYNC_SECRET}`) {
+    const authHeader = request.headers.get('Authorization') || '';
+    if (!env.SYNC_SECRET || !safeEqual(authHeader, `Bearer ${env.SYNC_SECRET}`)) {
       return new Response('Unauthorized', { status: 401 });
     }
     try {

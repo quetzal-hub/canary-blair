@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Pipeline dependencies (repo root)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      pipeline-deps:
+        patterns:
+          - "*"
+
+  # SvelteKit app dependencies
+  - package-ecosystem: npm
+    directory: /canary-blair-app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      app-deps:
+        patterns:
+          - "*"
+
+  # GitHub Actions versions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

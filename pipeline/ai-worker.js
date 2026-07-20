@@ -506,6 +506,14 @@ ${capitalSponsorSection}`.trim();
 			`select=id&session_id=eq.${sessionId}&date=gte.${periodStart}&date=lte.${periodEnd}`
 		);
 
+		// Off-season: the legislature isn't sitting, so there's nothing to report.
+		// Skip the digest (and the Claude call) rather than posting a hollow
+		// "nothing happened this period" summary every day the session is dark.
+		if (bills.length === 0 && rollCalls.length === 0) {
+			console.log(`💤 No legislative activity for ${periodType} ${periodStart} — skipping digest`);
+			return;
+		}
+
 		const prompt = `You are Canary Blair — a civic accountability tool for ${STATE_CONFIG.name} residents.
 Write a ${periodType} digest of ${STATE_CONFIG.name} legislative activity.
 

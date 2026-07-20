@@ -26,7 +26,9 @@
 				{#if member.district}
 					<span>District {member.district}</span>
 				{/if}
-				{#if member.next_election}
+				{#if member.is_current === false}
+					<span class="former-tag">Former</span>
+				{:else if member.next_election}
 					<span class="election-tag">Up in {member.next_election}</span>
 				{/if}
 			</div>
@@ -129,6 +131,16 @@
 	.election-tag {
 		color: var(--color-accent);
 		font-weight: 600;
+	}
+	.former-tag {
+		color: var(--color-text-dim);
+		font-weight: 600;
+		text-transform: uppercase;
+		font-size: 0.6875rem;
+		letter-spacing: 0.04em;
+		border: 1px solid var(--color-border);
+		border-radius: 4px;
+		padding: 0 0.35rem;
 	}
 	.score-col {
 		flex-shrink: 0;
