@@ -95,6 +95,14 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - Falls back to a city/ZIP approximation when no street address is given
 - Returns your legislators' cards, Canary Scores and all
 
+**Personal & civic tools**
+- **My Reps (`/my-reps`)** — pin your legislators; the list lives only in your browser's localStorage (no account, no server, no tracking)
+- **Compare (`/compare`)** — two legislators' scores, badges, and records side by side
+- **Statewide Stats (`/stats`)** — average Canary Score by party and chamber, plus the tier distribution
+- **Contact your rep** — email (opens with a short editable template) and phone, right on each profile, plus a one-tap copy-link share
+- **Open Data (`/data`)** — download the entire scoreboard as CSV or JSON; no key, no scraping
+- **Shareable profiles** — Open Graph tags so a pasted member link unfurls with their score and tier
+
 **About (`/about`)**
 - Mission statement and the Blair Mountain history
 - How the data is collected (LegiScan attribution)

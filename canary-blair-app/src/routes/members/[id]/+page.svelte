@@ -6,6 +6,7 @@
 	import Pagination from '$lib/components/Pagination.svelte';
 	import ScoreBreakdown from '$lib/components/ScoreBreakdown.svelte';
 	import ScoreHistory from '$lib/components/ScoreHistory.svelte';
+	import PinButton from '$lib/components/PinButton.svelte';
 	import { chamberLabel, partyLabel, voteColor, getTierData, getBadgeData, getBillImpactTier, scoreColor, effectiveAlignment, effectiveImpactTier, isReviewed } from '$lib/utils.js';
 
 	const alignmentLabels = {
@@ -19,6 +20,29 @@
 
 	const tier = $derived(getTierData(member.canary_tier));
 
+	const shareDesc = $derived(
+		member.canary_score != null && tier
+			? `Canary Score ${member.canary_score}/100 — ${tier.name}. See how ${member.full_name} actually votes.`
+			: `${member.full_name}'s voting record on Canary Blair.`
+	);
+
+	// Prewritten, editable message for contacting the legislator.
+	const contactBody = $derived(
+		`Dear ${member.full_name},\n\nAs a constituent, I'm writing about your voting record. ` +
+			`I've been following it on Canary Blair and I'd like to know more about how you're representing our district.\n\nThank you,`
+	);
+
+	let copied = $state(false);
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText($pageStore.url.href);
+			copied = true;
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			copied = false;
+		}
+	}
+
 	function changeVotePage(newPage) {
 		const url = new URL($pageStore.url);
 		url.searchParams.set('vp', String(newPage));
@@ -28,6 +52,11 @@
 
 <svelte:head>
 	<title>{member.full_name} — Canary Blair</title>
+	<meta name="description" content={shareDesc} />
+	<meta property="og:title" content="{member.full_name} — Canary Blair" />
+	<meta property="og:description" content={shareDesc} />
+	<meta property="og:type" content="profile" />
+	<meta name="twitter:card" content="summary" />
 	<link rel="alternate" type="application/rss+xml" title="{member.full_name} — every vote" href="/feeds/member/{member.id}.xml" />
 </svelte:head>
 
@@ -62,6 +91,12 @@
 					{/if}
 				</div>
 				<h1>{member.full_name}</h1>
+				<div class="header-actions">
+					<PinButton memberId={member.id} memberName={member.full_name} />
+					<button class="share-btn" onclick={copyLink}>
+						<span aria-hidden="true">🔗</span> {copied ? 'Link copied' : 'Share'}
+					</button>
+				</div>
 			</div>
 		</div>
 	</header>
@@ -108,6 +143,25 @@
 	{#if member.canary_score != null}
 		<ScoreHistory history={data.scoreHistory} />
 		<ScoreBreakdown breakdown={data.breakdown} memberName={member.full_name} />
+	{/if}
+
+	<!-- Contact -->
+	{#if member.email || member.phone}
+		<section class="section">
+			<h2>Contact {member.full_name}</h2>
+			<p class="contact-intro">You elected them — they answer to you. Reach out about their record.</p>
+			<div class="contact-links">
+				{#if member.email}
+					<a class="contact-link" href="mailto:{member.email}?subject={encodeURIComponent('A constituent about your voting record')}&body={encodeURIComponent(contactBody)}">
+						<span aria-hidden="true">✉️</span> Email {member.is_current === false ? '' : 'your rep'}
+					</a>
+				{/if}
+				{#if member.phone}
+					<a class="contact-link" href="tel:{member.phone}"><span aria-hidden="true">📞</span> {member.phone}</a>
+				{/if}
+			</div>
+			<p class="contact-note">The email opens with a short, editable message — make it your own.</p>
+		</section>
 	{/if}
 
 	<!-- Badges -->
@@ -270,6 +324,57 @@
 		text-transform: uppercase;
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: var(--space-sm);
+		align-items: center;
+		margin-top: var(--space-sm);
+	}
+	.share-btn {
+		background: var(--color-bg-raised);
+		border: 1px solid var(--color-border);
+		border-radius: 9999px;
+		padding: 0.2rem 0.75rem;
+		color: var(--color-text-muted);
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+	.share-btn:hover {
+		color: var(--color-text);
+		border-color: var(--color-accent);
+	}
+
+	.contact-intro {
+		color: var(--color-text-muted);
+		font-size: 0.9375rem;
+		margin-bottom: var(--space-md);
+	}
+	.contact-links {
+		display: flex;
+		gap: var(--space-sm);
+		flex-wrap: wrap;
+	}
+	.contact-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.5rem 1rem;
+		background: var(--color-accent);
+		color: #1a1a1a;
+		border-radius: 6px;
+		font-weight: 600;
+		font-size: 0.875rem;
+	}
+	.contact-link:hover {
+		opacity: 0.9;
+		text-decoration: none;
+	}
+	.contact-note {
+		margin-top: var(--space-sm);
+		font-size: 0.75rem;
+		color: var(--color-text-dim);
 	}
 
 	.section {
