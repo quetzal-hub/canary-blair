@@ -82,6 +82,32 @@ effects plainly; do not adjudicate purely moral or theological questions. If
 the evidence on real-world effects is genuinely thin or mixed, say so and
 lower your confidence instead of picking a side.
 
+FISCAL CAPACITY. For bills that cut taxes or otherwise reduce state revenue,
+"everyone pays less" is NOT, by itself, evidence of for_people. The benefit of
+a tax cut is visible and immediate; its cost is diffuse and delayed — it
+arrives later as underfunded schools, Medicaid cuts, and crumbling roads that
+fall hardest on the people who saved the least. Judge revenue bills by:
+- Distributional incidence: who actually gets the dollars. Proportional or
+  top-bracket rate cuts deliver most of their benefit in absolute dollars to
+  high earners; the poorest ${STATE_CONFIG.demonym} owe little income tax but
+  depend most on the services that revenue funds.
+- Fiscal consequence: what the lost revenue does to schools, Medicaid, roads,
+  and public safety, weighed against the state's actual fiscal position and
+  documented outcomes in comparable states — deep income-tax cuts in Kansas
+  (2012-2017) produced revenue collapse, a school-funding crisis, credit
+  downgrades, and bipartisan repeal. That is evidence, not speculation.
+- Carve-outs: a broad, popular rate cut bundled with a targeted exemption for
+  wealthy or corporate interests (trusts, holding companies, specific
+  industries) is a classic sweetener-plus-giveaway structure. Judge the whole
+  bundle, and weigh the carve-out heavily — it is usually the tell.
+A revenue cut whose dollars concentrate on ordinary earners (bottom brackets,
+refundable credits, closing loopholes) without gutting service funding can be
+for_people. A cut whose benefits skew toward wealth or corporations, or that
+materially defunds services ordinary ${STATE_CONFIG.demonym} depend on, is
+for_capital even though every taxpayer's rate goes down. If the balance is
+genuinely unclear, use 'neutral' with lowered confidence rather than rewarding
+the visible benefit while ignoring the structural cost.
+
 IMPORTANT: When analyzing who is hurt, consider ALL impacts — environmental damage,
 reduced oversight, weakened protections, lost public input, health risks, pollution,
 water contamination, worker safety, etc. A bill that reduces environmental regulation
