@@ -295,7 +295,7 @@ async function run() {
 				role: person.role || null,
 				district: person.district || null,
 				chamber: person.role_id === 1 ? 'H' : 'S',
-				followthemoney_eid: person.followthemoney_eid || null,
+				followthemoney_eid: person.ftm_eid || null,
 				votesmart_id: person.votesmart_id || null,
 				opensecrets_id: person.opensecrets_id || null,
 				ballotpedia: person.ballotpedia || null,

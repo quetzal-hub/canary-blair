@@ -78,11 +78,13 @@ class LegiScanClient {
    */
   async getMasterListRaw(sessionId) {
     const data = await this._fetch('getMasterListRaw', { id: sessionId });
-    // Returns { masterlist: { "0": { session_id, bill_id, number, change_hash, ... }, ... } }
+    // Returns { masterlist: { <meta key>: { session_id, sine_die, ... — no bill_id },
+    //                         "1": { bill_id, number, change_hash, ... }, ... }
+    // The metadata entry's key isn't reliably "0" (seen as literal key "session" in
+    // practice), so filter by the actual invariant we need — having a bill_id —
+    // rather than assuming a specific key.
     const raw = data.masterlist;
-    // Remove metadata entry at key "0"
-    const { 0: _meta, ...bills } = raw;
-    return Object.values(bills);
+    return Object.values(raw).filter((entry) => entry && entry.bill_id);
   }
 
   /** Get full bill detail including sponsors, history, text refs, roll calls */
@@ -343,7 +345,7 @@ class SyncEngine {
         role:               person.role,
         district:           person.district,
         chamber:            person.role_id === 1 ? 'H' : 'S',
-        followthemoney_eid: person.followthemoney_eid || null,
+        followthemoney_eid: person.ftm_eid || null,
         votesmart_id:       person.votesmart_id || null,
         opensecrets_id:     person.opensecrets_id || null,
         ballotpedia:        person.ballotpedia || null,
@@ -582,9 +584,18 @@ class SyncEngine {
     console.log(`📦 Session adjourned sine die — archiving ${expiredBills.length} expired bills...`);
     const now = new Date().toISOString();
 
-    for (const bill of expiredBills) {
-      await this.db.upsert('bills', {
-        id: bill.id,
+    // PATCH, not upsert: INSERT...ON CONFLICT DO UPDATE must still validate the
+    // candidate row against NOT NULL constraints (legiscan_id, bill_number, ...)
+    // when constructing it, even for rows that will conflict and take the
+    // UPDATE branch — so a partial-column upsert on an existing row always
+    // fails. PATCH updates only the given columns, with no such check on the
+    // rest. Batched (200 ids/request) so 2000+ expired bills don't need
+    // one request each or blow past a URL length limit.
+    const CHUNK = 200;
+    const ids = expiredBills.map((b) => b.id);
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = ids.slice(i, i + CHUNK);
+      await this.db.patch('bills', `id=in.(${batch.join(',')})`, {
         is_archived: true,
         archived_at: now,
       });
