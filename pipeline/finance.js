@@ -6,13 +6,16 @@
  * their Canary Score. Matches on the followthemoney_eid we sync from LegiScan
  * first, then falls back to name matching.
  *
+ * Uses FollowTheMoney's documented "Ask Anything" API: filter contributions to
+ * a candidate by their entity id (c-t-eid) and read the total at
+ * records[].Total_$.Total_$.
+ *
  * ── SAFETY: DRY RUN BY DEFAULT ──────────────────────────────
- * The exact JSON field that holds the dollar total is NOT publicly documented,
- * and this is money data attached to real, named politicians — a wrong number
- * is worse than no number. So by default this script writes NOTHING: it fetches
- * a few members, prints the raw API response and the total it extracted, and
- * stops. Confirm the extracted number matches the FollowTheMoney entity page,
- * adjust extractTotalRaised() if needed, THEN run with --commit.
+ * This is money data attached to real, named politicians — a wrong number is
+ * worse than no number. So by default this script writes NOTHING: it fetches a
+ * few members, prints the raw API response and the total it extracted, and
+ * stops. Confirm the number matches the FollowTheMoney entity page (and that
+ * the career total is the figure you want vs. a single cycle), THEN --commit.
  *
  * Usage:
  *   FTM_API_KEY=... node pipeline/finance.js            # dry run (default): inspect a few, write nothing
@@ -58,13 +61,33 @@ async function dbPatch(id, data) {
 }
 
 /**
- * Extract a total-dollars figure from a FollowTheMoney response. The response
- * shape isn't publicly documented and the Ask Anything API nests every field as
- * {"Field": "value"}, so this searches defensively for a total-money field.
- * VERIFY the result against the entity page before trusting it (that's what the
- * dry run is for). If the number is wrong, fix the field path here.
+ * Extract the total-dollars figure from a FollowTheMoney "Ask Anything" JSON
+ * response. Per the API docs, records carry the total at records[].Total_$.Total_$
+ * (a dollar string like "5000.00"); with no grouping the response is a single
+ * summary record for the filtered candidate. We sum across records defensively
+ * (in case grouping ever returns several), and fall back to a deep search for a
+ * total-money field if the documented shape ever changes.
  */
 export function extractTotalRaised(json) {
+	// Documented path: records[].Total_$.Total_$
+	if (json && Array.isArray(json.records) && json.records.length) {
+		let sum = 0;
+		let found = false;
+		for (const rec of json.records) {
+			const t = rec?.['Total_$'];
+			const raw = t && typeof t === 'object' ? t['Total_$'] : t;
+			if (raw != null) {
+				const num = Number(String(raw).replace(/[^0-9.]/g, ''));
+				if (!Number.isNaN(num)) {
+					sum += num;
+					found = true;
+				}
+			}
+		}
+		if (found) return sum;
+	}
+
+	// Fallback: defensive deep search for any total-money field.
 	let best = null;
 	const totalKey = /total.*(\$|amount|raised|contrib)/i;
 	const walk = (node) => {
@@ -84,10 +107,12 @@ export function extractTotalRaised(json) {
 	return best;
 }
 
+// Ask Anything API: filter contributions to a candidate by their entity id
+// (c-t-eid). No grouping → one summary record with the career total.
 async function fetchEntity(eid) {
-	const url = `${FTM_BASE}/entity.php?eid=${encodeURIComponent(eid)}&APIKey=${FTM_API_KEY}&mode=json`;
+	const url = `${FTM_BASE}/?c-t-eid=${encodeURIComponent(eid)}&APIKey=${FTM_API_KEY}&mode=json`;
 	const res = await fetch(url);
-	if (!res.ok) throw new Error(`FTM entity ${eid}: HTTP ${res.status}`);
+	if (!res.ok) throw new Error(`FTM candidate ${eid}: HTTP ${res.status}`);
 	return { url, json: await res.json() };
 }
 

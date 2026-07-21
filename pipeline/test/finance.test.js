@@ -8,12 +8,22 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { extractTotalRaised } from '../finance.js';
 
-test('extractTotalRaised finds a nested total-dollars field', () => {
+test('extractTotalRaised reads the documented records[].Total_$.Total_$ shape', () => {
 	const resp = {
 		metaInfo: { format: 'json' },
-		records: [{ Candidate: { Candidate: 'Jane Doe' }, 'Total_$': { 'Total_$': '125,400' } }]
+		records: [{ Candidate: { Candidate: 'Jane Doe' }, 'Total_$': { 'Total_$': '125,400.00' } }]
 	};
 	assert.equal(extractTotalRaised(resp), 125400);
+});
+
+test('extractTotalRaised sums Total_$ across multiple records', () => {
+	const resp = {
+		records: [
+			{ 'Total_$': { 'Total_$': '1000.00' } },
+			{ 'Total_$': { 'Total_$': '2500.50' } }
+		]
+	};
+	assert.equal(extractTotalRaised(resp), 3500.5);
 });
 
 test('extractTotalRaised picks the largest matching total', () => {
