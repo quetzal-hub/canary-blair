@@ -210,6 +210,15 @@ ${peopleSponsorSection}
 
 BILLS THEY SPONSOR THAT HELP CORPORATIONS:
 ${capitalSponsorSection}
+${member.finance_total_raised != null ? `
+CAMPAIGN FINANCE (source: FollowTheMoney${member.finance_matched_by === 'name' ? ', matched by name — approximate' : ''}):
+Total contributions raised: $${Number(member.finance_total_raised).toLocaleString()}${member.finance_cycle ? ` (${member.finance_cycle} cycle)` : ''}
+
+You may state these fundraising facts plainly and place them next to the voting
+record, but NEVER assert or imply a quid pro quo, bribery, or that votes were
+"bought," "paid for," or cast "for donors" — that is a causal claim the data
+cannot support. State the money fact, state the votes fact, and let readers
+reach their own conclusions.` : ''}
 
 Write a 4-6 sentence profile. Focus on:
 1. What the HIGH-IMPACT votes reveal — these matter most. Reference specific bills by name when they tell a clear story.
@@ -240,10 +249,10 @@ async function run() {
 	let members;
 	if (targetMemberId) {
 		members = await supabaseFetch('members',
-			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary&id=eq.${targetMemberId}`
+			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary,finance_total_raised,finance_cycle,finance_matched_by&id=eq.${targetMemberId}`
 		);
 	} else {
-		let filter = 'select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary';
+		let filter = 'select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary,finance_total_raised,finance_cycle,finance_matched_by';
 		if (!force) filter += '&ai_profile_summary=is.null';
 		filter += '&order=canary_score.desc.nullslast';
 		if (limit) filter += `&limit=${limit}`;

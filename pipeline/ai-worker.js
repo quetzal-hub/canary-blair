@@ -133,6 +133,13 @@ Write a 4-6 sentence profile. Focus on:
 3. Any notable patterns from their badges (e.g., lockstep voter, ghost, lone canary).
 4. What this means for their constituents in plain terms.
 
+CAMPAIGN FINANCE (if provided): You may state the fundraising facts plainly —
+the amount raised and its source attribution. You may place those facts next to
+the voting record. But NEVER assert or imply a quid pro quo, bribery, or that
+votes were "bought," "paid for," or cast "for donors" — that is a causal claim
+the data cannot support and it must not appear in any wording. State the money
+fact, state the votes fact, and let readers reach their own conclusions.
+
 Do NOT cite raw vote percentages or counts. Do NOT say "X% of the time."
 Instead, describe WHAT they voted for and against on the bills that matter.
 Be factual. Don't repeat the score number. Don't use the word "mixed."
@@ -458,13 +465,16 @@ BILLS THEY SPONSOR THAT HELP PEOPLE:
 ${peopleSponsorSection}
 
 BILLS THEY SPONSOR THAT HELP CORPORATIONS:
-${capitalSponsorSection}`.trim();
+${capitalSponsorSection}
+${member.finance_total_raised != null ? `
+CAMPAIGN FINANCE (source: FollowTheMoney${member.finance_matched_by === 'name' ? ', matched by name — approximate' : ''}):
+Total contributions raised: $${Number(member.finance_total_raised).toLocaleString()}${member.finance_cycle ? ` (${member.finance_cycle} cycle)` : ''}` : ''}`.trim();
 	}
 
 	async generateMemberProfile(memberId) {
 		// Fetch member data
 		const [member] = await this.dbFetch('members',
-			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election&id=eq.${memberId}`
+			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,finance_total_raised,finance_cycle,finance_matched_by&id=eq.${memberId}`
 		);
 		if (!member) throw new Error(`Member ${memberId} not found`);
 
