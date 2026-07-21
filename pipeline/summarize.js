@@ -38,7 +38,7 @@ if (!ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 // Model is set in lib/ai-config.js (shared with the AI worker).
-const MAX_TOKENS = 3000; // headroom for adaptive thinking + the JSON answer
+const MAX_TOKENS = 4000; // headroom for adaptive thinking + expanded JSON on complex (tier 1-2) bills
 
 // ─────────────────────────────────────────
 // CLI ARGS
@@ -222,11 +222,16 @@ Sponsors: ${sponsors.length ? sponsors.join(', ') : 'Unknown'}
 ${textSection}
 
 Respond ONLY with a JSON object. No preamble, no markdown fences.
+
+Length guidance below is a target, not a straitjacket: NEVER omit a material
+effect of the bill to satisfy a sentence count. For genuinely complex bills
+(omnibus, budget, multi-subject overhauls — typically tier 1-2), expand as
+needed; for everything else, shorter is better.
 {
-  "summary": "2-4 sentence plain language explanation of what this bill does. Write for a 10th grade reading level. Be concrete and specific.",
-  "critical_points": ["Array of up to 10 bullet points highlighting key provisions, dollar amounts, deadlines, thresholds, exemptions, and other concrete details from the bill. Each bullet should be one clear sentence. For short bills, fewer points are fine — aim for 10 on longer bills."],
-  "who_benefits": "1-3 sentences. Who gains from this bill passing? Be specific — name industries, groups, or interests when relevant.",
-  "who_is_hurt": "1-3 sentences. Who loses or bears costs if this passes? Consider environmental harm, reduced oversight, public health risks, lost worker protections, and community impacts. If no one is clearly hurt, say so honestly.",
+  "summary": "2-4 sentence plain language explanation of what this bill does (up to 6 for complex multi-part bills). Write for a 10th grade reading level. Be concrete and specific.",
+  "critical_points": ["Array of up to 10 bullet points highlighting key provisions, dollar amounts, deadlines, thresholds, exemptions, and other concrete details from the bill. Each bullet should be one clear sentence. For short bills, fewer points are fine; for omnibus or budget bills, use up to 15 rather than dropping a consequential provision."],
+  "who_benefits": "1-3 sentences (up to 5 for complex bills). Who gains from this bill passing? Be specific — name industries, groups, or interests when relevant.",
+  "who_is_hurt": "1-3 sentences (up to 5 for complex bills). Who loses or bears costs if this passes? Consider environmental harm, reduced oversight, public health risks, lost worker protections, and community impacts. If no one is clearly hurt, say so honestly.",
   "reasoning": "1-2 sentences naming the concrete mechanism behind your alignment call — who specifically gains or loses and how, grounded in the bill's actual provisions.",
   "alignment": "One of: 'for_people' (primarily benefits ordinary ${STATE_CONFIG.demonym}, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries such as ${STATE_CONFIG.extractiveIndustries}, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics. ${STATE_CONFIG.energyGuidance}",
   "impact_tier": "Integer 1-6 rating how consequential this bill is. This is INDEPENDENT of alignment — it measures magnitude of real-world impact, not direction. 1 = LANDMARK: Transformative structural change affecting thousands of ${STATE_CONFIG.demonym} (e.g. gutting clean water protections statewide, major healthcare expansion, sweeping education overhaul). 2 = HIGH IMPACT: Significant real-world consequences for communities, health, environment, or livelihoods (e.g. weakening mine safety rules, expanding Medicaid eligibility, major tax shifts). 3 = MEANINGFUL: Clear benefit or harm but narrower scope — affects a specific group, region, or sector (e.g. teacher pay raise, single-industry regulation change). 4 = ROUTINE: Standard legislation with modest impact (e.g. updating licensing requirements, adjusting administrative procedures). 5 = MINOR: Small procedural tweaks, technical amendments, or housekeeping changes. 6 = CEREMONIAL: Resolutions, namings, commemorations, symbolic acts with no policy impact. Be honest — most bills are tier 3-5. Reserve tier 1 for bills that would fundamentally change how ${STATE_CONFIG.name} works. A bill that touches water, environment, or public health in ${STATE_CONFIG.localStakesNote} should be weighted MORE seriously.",
