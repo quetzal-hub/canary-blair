@@ -208,14 +208,21 @@ canary-blair/
 │   ├── lib/
 │   │   ├── scoring.js            # Shared Canary Score engine (single source of truth)
 │   │   ├── state-config.js       # Per-state config (name, industries, tier names) — fork here
-│   │   └── ai-config.js          # Claude model choice (one line), shared by all AI scripts
+│   │   ├── ai-config.js          # Claude model choice (one line), shared by all AI scripts
+│   │   ├── finance-format.js     # Renders finance_* columns into the AI profile prompt
+│   │   └── csv.js                # Minimal CSV read/write for the eid-matching workflow
 │   ├── test/
-│   │   └── scoring.test.js       # Unit tests locking down the scoring math
+│   │   ├── scoring.test.js       # Unit tests locking down the scoring math
+│   │   └── finance.test.js       # Unit tests for the FollowTheMoney response parser
 │   ├── sync.js                   # LegiScan → Supabase sync (Cloudflare Worker)
 │   ├── ai-worker.js              # AI summarization worker (Cloudflare Worker)
 │   ├── score.js                  # Canary Score CLI runner (uses lib/scoring.js)
 │   ├── summarize.js              # Bill summarization logic
 │   ├── profiles.js               # Member profile generation logic
+│   ├── finance.js                # Campaign-finance sync (FollowTheMoney)
+│   ├── finance-eid-export.js     # Step 1: export members + search links for eid matching
+│   ├── finance-eid-import.js     # Step 2: import confirmed eids from CSV
+│   ├── backup.js / restore.js    # Full-database backup/restore (no re-paying for AI data)
 │   ├── bootstrap.js              # One-time full data load
 │   ├── test-sync.js              # Local test runner for the sync worker
 │   └── test-ai.js                # Local test runner for the AI worker
@@ -441,6 +448,17 @@ FTM_API_KEY=... node pipeline/finance.js --commit   # write to the database
 ```
 
 The exact FollowTheMoney total field isn't publicly documented, so verify the dry-run numbers against the FollowTheMoney entity page before committing; adjust `extractTotalRaised()` in `pipeline/finance.js` if needed.
+
+**Matching legislators to a FollowTheMoney entity id first.** FollowTheMoney's API has no name-search token — every candidate filter requires an id you already have, and name filtering is explicitly disabled. So the first time you set this up (or whenever a new member takes office), matching needs one human-verified lookup per person — a wrong match would misattribute real money to the wrong named politician, which is worse than showing nothing:
+
+```bash
+npm run finance-eid-export                          # writes finance-eids.csv with a search link per member
+# open the CSV, click each link, confirm it's the right WV legislator, paste in their eid
+npm run finance-eid-import finance-eids.csv          # dry run: show what would change
+npm run finance-eid-import finance-eids.csv -- --commit   # write the confirmed eids
+```
+
+Leave a row's `eid` blank if you can't confidently confirm the match — skipping is safer than guessing.
 
 ### Classification accuracy eval
 

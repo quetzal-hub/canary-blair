@@ -12,3 +12,6 @@ pipeline/eval/labels.json
 
 # Database backups (data, potentially large — keep out of git; copy elsewhere)
 backups/
+
+# Working file for the FollowTheMoney eid-matching workflow (finance-eid-export.js)
+finance-eids.csv
