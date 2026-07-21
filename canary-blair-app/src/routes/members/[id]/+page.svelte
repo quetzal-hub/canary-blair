@@ -20,6 +20,16 @@
 
 	const tier = $derived(getTierData(member.canary_tier));
 
+	const age = $derived.by(() => {
+		if (!member.birth_date) return null;
+		const birth = new Date(member.birth_date);
+		const now = new Date();
+		let years = now.getFullYear() - birth.getFullYear();
+		const beforeBirthday = now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate());
+		if (beforeBirthday) years--;
+		return years;
+	});
+
 	const shareDesc = $derived(
 		member.canary_score != null && tier
 			? `Canary Score ${member.canary_score}/100 — ${tier.name}. See how ${member.full_name} actually votes.`
@@ -82,6 +92,10 @@
 						<span class="sep">·</span>
 						<span>District {member.district}</span>
 					{/if}
+					{#if age}
+						<span class="sep">·</span>
+						<span>Age {age}</span>
+					{/if}
 					{#if member.is_current === false}
 						<span class="sep">·</span>
 						<span class="former-year">Former legislator</span>
@@ -91,6 +105,9 @@
 					{/if}
 				</div>
 				<h1>{member.full_name}</h1>
+				{#if member.leadership_title}
+					<div class="leadership-tag">🏛️ {member.leadership_title}</div>
+				{/if}
 				<div class="header-actions">
 					<PinButton memberId={member.id} memberName={member.full_name} />
 					<button class="share-btn" onclick={copyLink}>
@@ -391,6 +408,17 @@
 		text-transform: uppercase;
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
+	}
+	.leadership-tag {
+		display: inline-block;
+		margin-top: var(--space-xs);
+		padding: 0.25rem 0.75rem;
+		border-radius: 999px;
+		background: var(--color-bg-hover);
+		border: 1px solid var(--color-accent-dim);
+		color: var(--color-accent);
+		font-weight: 600;
+		font-size: 0.875rem;
 	}
 
 	.header-actions {

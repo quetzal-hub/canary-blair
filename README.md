@@ -474,6 +474,15 @@ npm run photos            # dry run: show what would change
 npm run photos -- --commit   # write photo_url + leadership_title to the database
 ```
 
+### Open States (Plural) bio sync (optional)
+
+Populates `members.birth_date` and `members.gender` from Open States/Plural's free API (register at open.pluralpolicy.com — no organizational-licensing ambiguity like Vote Smart, their free tier is explicitly for non-commercial/civic projects), and fills `photo_url` **only** for members our own WV-roster scrape (`photos.js`) couldn't match — it never overwrites a photo we already have, since Open States' cached images run behind our own live scrape. Checked directly before building: `extras.profession` is empty for every WV legislator (0/136) so it isn't fetched, and their `/events` endpoint currently has zero upcoming events and no bill-linked agenda items — not worth building on until the legislature is back in session. Uses ~4 of the free tier's 500 requests/day. Requires `schema/017_openstates_bio.sql`. Dry-run by default:
+
+```bash
+npm run openstates            # dry run: show what would change
+npm run openstates -- --commit   # write to the database
+```
+
 ### Classification accuracy eval
 
 Measures how often the AI's bill classification agrees with your own human judgment — the honest way to know whether a prompt change actually helped. Copy the template, hand-label 30–50 real bills, and run it:
