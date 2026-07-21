@@ -416,6 +416,16 @@ Recalculates scores for all members based on the latest bill classifications and
 npm run score
 ```
 
+### Database backups
+
+The raw legislative data is re-derivable from LegiScan (`npm run bootstrap`), so the real value of a backup is protecting what's *expensive* to regenerate — the AI summaries/classifications, human overrides, score history, and classification reports. Dump every table to timestamped JSON:
+
+```bash
+npm run backup          # writes backups/<timestamp>/*.json (gitignored)
+```
+
+Cron it (or run it before risky changes) and copy the folder somewhere safe. Supabase's free tier has no automated backups; the Pro plan adds managed daily backups if you outgrow this.
+
 ### Campaign finance sync (optional)
 
 Populates each legislator's total campaign contributions from FollowTheMoney, matched on the `followthemoney_eid` we already sync. **Dry-run by default** — because this is money data on named politicians, it prints the raw API responses and the totals it extracted and writes nothing until you confirm and pass `--commit`:

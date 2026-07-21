@@ -8,6 +8,7 @@
     "sync-test": "node pipeline/test-sync.js",
     "score": "node pipeline/score.js",
     "finance": "node pipeline/finance.js",
+    "backup": "node pipeline/backup.js",
     "eval": "node pipeline/eval/run.js",
     "test": "node --test \"pipeline/test/*.test.js\""
   },
