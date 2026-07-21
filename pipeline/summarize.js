@@ -1,9 +1,9 @@
 /**
  * CANARY BLAIR — Smart AI Summarization
  *
- * Summarizes bills using Claude. Cost-optimized:
+ * Summarizes bills using Claude (model set in lib/ai-config.js, shared with
+ * the AI worker):
  *   - Summarizes active + passed bills (status 1-4) by default
- *   - Uses Haiku for bulk, keeps costs near zero
  *   - Skips bills that already have a summary (unless --force)
  *   - Can target only voted-on bills with --voted-only
  *   - Can target specific bills with --bill-id=12345
@@ -252,7 +252,7 @@ local-government, budget, criminal-justice, civil-rights, family, children, elde
 async function run() {
 	const startTime = Date.now();
 	console.log('🤖 Canary Blair AI Summarization\n');
-	console.log(`   Model: ${MODEL}`);
+	console.log(`   Model: ${CLAUDE_MODEL}`);
 	console.log(`   Force re-summarize: ${force}`);
 	console.log(`   Include passed: ${!excludePassed}`);
 	console.log(`   Voted-only: ${votedOnly}`);

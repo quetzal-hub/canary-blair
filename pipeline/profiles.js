@@ -238,7 +238,7 @@ Respond with plain text only. No markdown, no JSON, no bullet points.`.trim();
 async function run() {
 	const startTime = Date.now();
 	console.log('👤 Canary Blair Member Profile Generator\n');
-	console.log(`   Model: ${MODEL}`);
+	console.log(`   Model: ${CLAUDE_MODEL}`);
 	console.log(`   Force regenerate: ${force}`);
 	if (targetMemberId) console.log(`   Target member: ${targetMemberId}`);
 	if (limit) console.log(`   Limit: ${limit}`);
