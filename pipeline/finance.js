@@ -1,14 +1,17 @@
 /**
  * CANARY BLAIR — Campaign finance sync (FollowTheMoney / OpenSecrets)
  *
- * Populates the finance_* columns on members (schema 011) with total campaign
- * contributions, so a profile can show "who funds this legislator" next to
- * their Canary Score. Matches on the followthemoney_eid we sync from LegiScan
- * first, then falls back to name matching.
+ * Populates the finance_* columns on members (schema 011 + 014) with the full
+ * "who funds this legislator" picture: career total, top donors, industry
+ * breakdown, individual-vs-organization split, and small-donor (≤$200) share.
+ * Matches on the followthemoney_eid we sync from LegiScan first, then falls
+ * back to name matching.
  *
  * Uses FollowTheMoney's documented "Ask Anything" API: filter contributions to
- * a candidate by their entity id (c-t-eid) and read the total at
- * records[].Total_$.Total_$.
+ * a candidate by their entity id (c-t-eid), read totals at
+ * records[].Total_$.Total_$, and group with gro=d-eid (contributors),
+ * gro=d-cci (industry+sector), gro=d-et (contributor type), plus the
+ * d-amt=0,200 filter for small-dollar money. Five calls per member, throttled.
  *
  * ── SAFETY: DRY RUN BY DEFAULT ──────────────────────────────
  * This is money data attached to real, named politicians — a wrong number is
@@ -107,13 +110,90 @@ export function extractTotalRaised(json) {
 	return best;
 }
 
+/**
+ * Read a value out of a FollowTheMoney record tag. Tags are nested objects of
+ * the shape { token, id, <TagName>: "display value" } in JSON mode.
+ */
+function tagValue(rec, tag) {
+	const o = rec?.[tag];
+	if (o == null) return null;
+	return typeof o === 'object' ? (o[tag] ?? null) : o;
+}
+
+function money(raw) {
+	if (raw == null) return null;
+	const num = Number(String(raw).replace(/[^0-9.]/g, ''));
+	return Number.isNaN(num) ? null : num;
+}
+
+/**
+ * Parse a grouped Ask Anything response into rows. `fields` maps output keys
+ * to record tag names, e.g. { name: 'Contributor', type: 'Type_of_Contributor' }.
+ * Every row also gets total (Total_$) and records (#_of_Records). Rows are
+ * returned in API order (sorted by Total_$ descending by default).
+ */
+export function extractGroupedRows(json, fields) {
+	if (!json || !Array.isArray(json.records)) return [];
+	const rows = [];
+	for (const rec of json.records) {
+		const row = {};
+		let anyField = false;
+		for (const [key, tag] of Object.entries(fields)) {
+			const v = tagValue(rec, tag);
+			row[key] = v;
+			if (v != null) anyField = true;
+		}
+		if (!anyField) continue;
+		row.total = money(tagValue(rec, 'Total_$'));
+		row.records = Number(tagValue(rec, '#_of_Records')) || null;
+		rows.push(row);
+	}
+	return rows;
+}
+
 // Ask Anything API: filter contributions to a candidate by their entity id
-// (c-t-eid). No grouping → one summary record with the career total.
-async function fetchEntity(eid) {
-	const url = `${FTM_BASE}/?c-t-eid=${encodeURIComponent(eid)}&APIKey=${FTM_API_KEY}&mode=json`;
+// (c-t-eid), plus optional extra params (gro=..., d-amt=..., p=...).
+async function ftmQuery(eid, extra = '') {
+	const url = `${FTM_BASE}/?c-t-eid=${encodeURIComponent(eid)}${extra ? `&${extra}` : ''}&APIKey=${FTM_API_KEY}&mode=json`;
 	const res = await fetch(url);
-	if (!res.ok) throw new Error(`FTM candidate ${eid}: HTTP ${res.status}`);
+	if (!res.ok) throw new Error(`FTM candidate ${eid}${extra ? ` (${extra})` : ''}: HTTP ${res.status}`);
 	return { url, json: await res.json() };
+}
+
+const pause = (ms = 250) => new Promise((r) => setTimeout(r, ms)); // be polite to the API
+
+const TOP_DONORS = 10;
+const TOP_INDUSTRIES = 10;
+
+/**
+ * Fetch the full finance picture for one entity: career total, top donors,
+ * industry breakdown, contributor-type split, and small-donor total (≤$200).
+ * Five API calls, throttled.
+ */
+async function fetchFinanceDetail(eid) {
+	const { json: totalJson } = await ftmQuery(eid);
+	await pause();
+	const { json: donorsJson } = await ftmQuery(eid, 'gro=d-eid');
+	await pause();
+	const { json: industriesJson } = await ftmQuery(eid, 'gro=d-cci');
+	await pause();
+	const { json: typesJson } = await ftmQuery(eid, 'gro=d-et');
+	await pause();
+	const { json: smallJson } = await ftmQuery(eid, 'd-amt=0,200');
+	await pause();
+
+	return {
+		total: extractTotalRaised(totalJson),
+		topDonors: extractGroupedRows(donorsJson, { name: 'Contributor', type: 'Type_of_Contributor' })
+			.filter((r) => r.name != null)
+			.slice(0, TOP_DONORS),
+		topIndustries: extractGroupedRows(industriesJson, { industry: 'Industry', sector: 'Sector' })
+			.filter((r) => r.industry != null)
+			.slice(0, TOP_INDUSTRIES),
+		contribTypes: extractGroupedRows(typesJson, { type: 'Type_of_Contributor' })
+			.filter((r) => r.type != null),
+		smallDonorTotal: extractTotalRaised(smallJson)
+	};
 }
 
 function entityPageUrl(eid) {
@@ -134,28 +214,35 @@ async function run() {
 		if (done >= LIMIT) break;
 		done++;
 		try {
-			const { url, json } = await fetchEntity(m.followthemoney_eid);
-			const total = extractTotalRaised(json);
+			const detail = await fetchFinanceDetail(m.followthemoney_eid);
 
 			if (!COMMIT) {
 				console.log(`── ${m.full_name} (eid ${m.followthemoney_eid}) ──`);
-				console.log(`  extracted total: ${total == null ? 'NONE FOUND — check field mapping' : '$' + total.toLocaleString()}`);
-				console.log(`  raw response (confirm the total is correct):`);
-				console.log(JSON.stringify(json, null, 2).slice(0, 2000));
-				console.log('');
-			} else if (total != null) {
+				console.log(`  total raised:      ${detail.total == null ? 'NONE FOUND — check field mapping' : '$' + detail.total.toLocaleString()}`);
+				console.log(`  small-donor ≤$200: ${detail.smallDonorTotal == null ? '—' : '$' + detail.smallDonorTotal.toLocaleString()}`);
+				console.log(`  contributor types: ${detail.contribTypes.map((t) => `${t.type} $${(t.total || 0).toLocaleString()}`).join(' | ') || '—'}`);
+				console.log(`  top industries:    ${detail.topIndustries.slice(0, 5).map((i) => `${i.industry} $${(i.total || 0).toLocaleString()}`).join(' | ') || '—'}`);
+				console.log(`  top donors:`);
+				for (const d of detail.topDonors.slice(0, 5)) {
+					console.log(`     - ${d.name} (${d.type || '?'}): $${(d.total || 0).toLocaleString()}`);
+				}
+				console.log('  Confirm these match the FollowTheMoney entity page before --commit.\n');
+			} else if (detail.total != null) {
 				await dbPatch(m.id, {
-					finance_total_raised: total,
+					finance_total_raised: detail.total,
+					finance_top_donors: detail.topDonors.length ? detail.topDonors : null,
+					finance_top_industries: detail.topIndustries.length ? detail.topIndustries : null,
+					finance_contrib_types: detail.contribTypes.length ? detail.contribTypes : null,
+					finance_small_donor_total: detail.smallDonorTotal,
 					finance_source_url: entityPageUrl(m.followthemoney_eid),
 					finance_matched_by: 'eid',
 					finance_updated_at: new Date().toISOString()
 				});
 				matched++;
-				console.log(`✅ ${m.full_name}: $${total.toLocaleString()}`);
+				console.log(`✅ ${m.full_name}: $${detail.total.toLocaleString()} — ${detail.topDonors.length} donors, ${detail.topIndustries.length} industries`);
 			} else {
 				console.warn(`⚠ ${m.full_name}: no total found in response — skipped`);
 			}
-			await new Promise((r) => setTimeout(r, 250)); // be polite to the API
 		} catch (err) {
 			console.error(`✗ ${m.full_name}: ${err.message}`);
 		}

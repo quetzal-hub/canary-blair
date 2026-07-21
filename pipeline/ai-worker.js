@@ -23,6 +23,7 @@ import {
 } from './lib/scoring.js';
 import { STATE_CONFIG } from './lib/state-config.js';
 import { CLAUDE_MODEL, THINKING_DISABLED, THINKING_ADAPTIVE, extractText } from './lib/ai-config.js';
+import { formatFinanceSection } from './lib/finance-format.js';
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -466,15 +467,13 @@ ${peopleSponsorSection}
 
 BILLS THEY SPONSOR THAT HELP CORPORATIONS:
 ${capitalSponsorSection}
-${member.finance_total_raised != null ? `
-CAMPAIGN FINANCE (source: FollowTheMoney${member.finance_matched_by === 'name' ? ', matched by name — approximate' : ''}):
-Total contributions raised: $${Number(member.finance_total_raised).toLocaleString()}${member.finance_cycle ? ` (${member.finance_cycle} cycle)` : ''}` : ''}`.trim();
+${formatFinanceSection(member)}`.trim();
 	}
 
 	async generateMemberProfile(memberId) {
 		// Fetch member data
 		const [member] = await this.dbFetch('members',
-			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,finance_total_raised,finance_cycle,finance_matched_by&id=eq.${memberId}`
+			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,finance_total_raised,finance_cycle,finance_matched_by,finance_top_donors,finance_top_industries,finance_contrib_types,finance_small_donor_total&id=eq.${memberId}`
 		);
 		if (!member) throw new Error(`Member ${memberId} not found`);
 

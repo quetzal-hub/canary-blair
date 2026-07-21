@@ -103,7 +103,7 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - **Open Data (`/data`)** — download the entire scoreboard as CSV or JSON; no key, no scraping
 - **Shareable profiles** — Open Graph tags so a pasted member link unfurls with their score and tier
 - **Committees (`/committees`)** — where bills quietly die; browse committees by bill count and how many bills never made it out
-- **Money-in-politics** — each profile can show total campaign contributions ("who funds them") from FollowTheMoney, clearly labeled as context and kept out of the score
+- **Money-in-politics** — each profile can show the full "who funds them" picture from FollowTheMoney: total raised, largest contributors, top industries, individuals vs. organizations & PACs, and the small-donor (≤$200) share — clearly labeled as context and kept out of the score
 
 
 
@@ -433,7 +433,7 @@ npm run restore backups/<timestamp>  # restore a backup into a fresh DB — no A
 
 ### Campaign finance sync (optional)
 
-Populates each legislator's total campaign contributions from FollowTheMoney, matched on the `followthemoney_eid` we already sync. **Dry-run by default** — because this is money data on named politicians, it prints the raw API responses and the totals it extracted and writes nothing until you confirm and pass `--commit`:
+Populates each legislator's money-in-politics picture from FollowTheMoney, matched on the `followthemoney_eid` we already sync: total raised, top 10 contributors (with individual/organization type), top 10 industries, the individuals-vs-organizations split, and the small-donor (≤$200) total — five throttled API calls per member (apply `schema/014_finance_detail.sql` first). **Dry-run by default** — because this is money data on named politicians, it prints what it extracted and writes nothing until you confirm and pass `--commit`:
 
 ```bash
 FTM_API_KEY=... npm run finance            # dry run: inspect a few, write nothing

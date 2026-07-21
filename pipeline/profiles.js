@@ -15,6 +15,7 @@ import 'dotenv/config';
 import { TIER_NAMES, BADGE_NAMES } from './lib/scoring.js';
 import { STATE_CONFIG } from './lib/state-config.js';
 import { CLAUDE_MODEL, THINKING_DISABLED, extractText } from './lib/ai-config.js';
+import { formatFinanceSection } from './lib/finance-format.js';
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -210,10 +211,8 @@ ${peopleSponsorSection}
 
 BILLS THEY SPONSOR THAT HELP CORPORATIONS:
 ${capitalSponsorSection}
+${formatFinanceSection(member)}
 ${member.finance_total_raised != null ? `
-CAMPAIGN FINANCE (source: FollowTheMoney${member.finance_matched_by === 'name' ? ', matched by name — approximate' : ''}):
-Total contributions raised: $${Number(member.finance_total_raised).toLocaleString()}${member.finance_cycle ? ` (${member.finance_cycle} cycle)` : ''}
-
 You may state these fundraising facts plainly and place them next to the voting
 record, but NEVER assert or imply a quid pro quo, bribery, or that votes were
 "bought," "paid for," or cast "for donors" — that is a causal claim the data
@@ -249,10 +248,10 @@ async function run() {
 	let members;
 	if (targetMemberId) {
 		members = await supabaseFetch('members',
-			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary,finance_total_raised,finance_cycle,finance_matched_by&id=eq.${targetMemberId}`
+			`select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary,finance_total_raised,finance_cycle,finance_matched_by,finance_top_donors,finance_top_industries,finance_contrib_types,finance_small_donor_total&id=eq.${targetMemberId}`
 		);
 	} else {
-		let filter = 'select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary,finance_total_raised,finance_cycle,finance_matched_by';
+		let filter = 'select=id,full_name,party,chamber,district,canary_score,canary_tier,canary_badges,next_election,ai_profile_summary,finance_total_raised,finance_cycle,finance_matched_by,finance_top_donors,finance_top_industries,finance_contrib_types,finance_small_donor_total';
 		if (!force) filter += '&ai_profile_summary=is.null';
 		filter += '&order=canary_score.desc.nullslast';
 		if (limit) filter += `&limit=${limit}`;

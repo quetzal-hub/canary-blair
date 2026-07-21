@@ -153,6 +153,52 @@
 				<span class="finance-amount">${member.finance_total_raised.toLocaleString()}</span>
 				<span class="finance-label">in total campaign contributions</span>
 			</div>
+
+			{#if member.finance_contrib_types?.length || member.finance_small_donor_total != null}
+				<div class="finance-split">
+					{#each member.finance_contrib_types || [] as t}
+						<div class="finance-split-item">
+							<span class="finance-split-amount">${(t.total || 0).toLocaleString()}</span>
+							<span class="finance-split-label">
+								{t.type === 'Individual' ? 'from individuals' : t.type === 'Non-Individual' ? 'from organizations & PACs' : 'other / unitemized'}
+							</span>
+						</div>
+					{/each}
+					{#if member.finance_small_donor_total != null}
+						<div class="finance-split-item">
+							<span class="finance-split-amount">${member.finance_small_donor_total.toLocaleString()}</span>
+							<span class="finance-split-label">from small donations ($200 or less)</span>
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			{#if member.finance_top_industries?.length}
+				<h3 class="finance-subhead">Top industries funding them</h3>
+				<ul class="finance-list">
+					{#each member.finance_top_industries.slice(0, 6) as ind}
+						<li>
+							<span class="finance-list-name">{ind.industry}</span>
+							{#if ind.sector && ind.sector !== ind.industry}<span class="finance-list-sector">{ind.sector}</span>{/if}
+							<span class="finance-list-amount">${(ind.total || 0).toLocaleString()}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
+			{#if member.finance_top_donors?.length}
+				<h3 class="finance-subhead">Largest contributors</h3>
+				<ul class="finance-list">
+					{#each member.finance_top_donors.slice(0, 6) as donor}
+						<li>
+							<span class="finance-list-name">{donor.name}</span>
+							{#if donor.type}<span class="finance-list-sector">{donor.type === 'Non-Individual' ? 'organization' : donor.type.toLowerCase()}</span>{/if}
+							<span class="finance-list-amount">${(donor.total || 0).toLocaleString()}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
 			<p class="finance-note">
 				Source: <a href={member.finance_source_url} target="_blank" rel="noopener noreferrer">FollowTheMoney</a>{member.finance_matched_by === 'name' ? ' (matched by name — approximate)' : ''}.
 				This is context, <strong>not</strong> part of the Canary Score — the score is math on votes and
@@ -415,6 +461,66 @@
 		font-size: 0.8125rem;
 		color: var(--color-text-dim);
 		line-height: 1.6;
+	}
+	.finance-split {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+		gap: var(--space-sm);
+		margin-bottom: var(--space-md);
+	}
+	.finance-split-item {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-sm) var(--space-md);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: 8px;
+	}
+	.finance-split-amount {
+		font-weight: 700;
+		font-size: 1.125rem;
+	}
+	.finance-split-label {
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+	}
+	.finance-subhead {
+		font-size: 0.9375rem;
+		margin: var(--space-md) 0 var(--space-sm);
+		color: var(--color-text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+	.finance-list {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 var(--space-md);
+	}
+	.finance-list li {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-sm);
+		padding: var(--space-xs) 0;
+		border-bottom: 1px solid var(--color-border);
+		font-size: 0.9375rem;
+	}
+	.finance-list li:last-child {
+		border-bottom: none;
+	}
+	.finance-list-name {
+		flex: 1;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.finance-list-sector {
+		font-size: 0.75rem;
+		color: var(--color-text-dim);
+		white-space: nowrap;
+	}
+	.finance-list-amount {
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	.section {
