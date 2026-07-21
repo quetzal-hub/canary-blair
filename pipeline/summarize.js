@@ -18,6 +18,7 @@
  *   node pipeline/summarize.js --backfill-tiers   # only bills with summary but no impact tier
  *   node pipeline/summarize.js --bill-id=12345    # single bill
  *   node pipeline/summarize.js --limit=50         # cap at 50 bills
+ *   node pipeline/summarize.js --concurrency=8    # bills in flight at once (default 5)
  */
 import 'dotenv/config';
 import { STATE_CONFIG } from './lib/state-config.js';
@@ -53,8 +54,10 @@ const backfillTiers = args.includes('--backfill-tiers');
 const textChanged = args.includes('--text-changed');
 const billIdArg = args.find((a) => a.startsWith('--bill-id='));
 const limitArg = args.find((a) => a.startsWith('--limit='));
+const concurrencyArg = args.find((a) => a.startsWith('--concurrency='));
 const targetBillId = billIdArg ? parseInt(billIdArg.split('=')[1]) : null;
 const limit = limitArg ? parseInt(limitArg.split('=')[1]) : null;
+const concurrency = concurrencyArg ? parseInt(concurrencyArg.split('=')[1]) : 5;
 
 // ─────────────────────────────────────────
 // SUPABASE HELPERS
@@ -106,27 +109,38 @@ async function supabasePatch(table, id, data) {
 // CLAUDE API
 // ─────────────────────────────────────────
 
-async function callClaude(prompt) {
-	const res = await fetch('https://api.anthropic.com/v1/messages', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'x-api-key': ANTHROPIC_API_KEY,
-			'anthropic-version': '2023-06-01'
-		},
-		body: JSON.stringify({
-			model: CLAUDE_MODEL,
-			max_tokens: MAX_TOKENS,
-			thinking: THINKING_ADAPTIVE, // reason before classifying (extractText skips thinking blocks)
-			messages: [{ role: 'user', content: prompt }]
-		})
-	});
-	if (!res.ok) {
-		const err = await res.text();
-		throw new Error(`Claude API error ${res.status}: ${err}`);
+// Concurrent workers raise the odds of hitting Anthropic's rate limit — retry
+// 429s with backoff (honoring retry-after when present) instead of counting
+// a rate-limited bill as a hard failure.
+async function callClaude(prompt, retries = 4) {
+	for (let attempt = 0; ; attempt++) {
+		const res = await fetch('https://api.anthropic.com/v1/messages', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-api-key': ANTHROPIC_API_KEY,
+				'anthropic-version': '2023-06-01'
+			},
+			body: JSON.stringify({
+				model: CLAUDE_MODEL,
+				max_tokens: MAX_TOKENS,
+				thinking: THINKING_ADAPTIVE, // reason before classifying (extractText skips thinking blocks)
+				messages: [{ role: 'user', content: prompt }]
+			})
+		});
+
+		if (res.status === 429 && attempt < retries) {
+			const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt * 2;
+			await new Promise((r) => setTimeout(r, retryAfter * 1000));
+			continue;
+		}
+		if (!res.ok) {
+			const err = await res.text();
+			throw new Error(`Claude API error ${res.status}: ${err}`);
+		}
+		const data = await res.json();
+		return extractText(data);
 	}
-	const data = await res.json();
-	return extractText(data);
 }
 
 // ─────────────────────────────────────────
@@ -301,6 +315,98 @@ local-government, budget, criminal-justice, civil-rights, family, children, elde
 }
 
 // ─────────────────────────────────────────
+// PER-BILL WORK + CONCURRENCY POOL
+// ─────────────────────────────────────────
+
+/** Classifies one bill and writes the result. Returns { ok, noText? , error? } — never throws. */
+async function processBill(bill) {
+	try {
+		const sponsors = await supabaseFetch(
+			'bill_sponsors',
+			`select=members(full_name)&bill_id=eq.${bill.id}`
+		);
+		const sponsorNames = sponsors.map((s) => s.members?.full_name).filter(Boolean);
+
+		const billText = await fetchBillText(bill.bill_text_url);
+		const noText = !billText;
+
+		const prompt = buildPrompt(bill, sponsorNames, billText);
+		const response = await callClaude(prompt);
+
+		let parsed;
+		try {
+			parsed = JSON.parse(response);
+		} catch {
+			const match = response.match(/\{[\s\S]*\}/);
+			if (match) parsed = JSON.parse(match[0]);
+			else throw new Error('Could not parse AI response as JSON');
+		}
+
+		const impactTier = parseInt(parsed.impact_tier);
+		const confidence = ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : null;
+		await supabasePatch('bills', bill.id, {
+			ai_summary: parsed.summary,
+			ai_critical_points: `{${(parsed.critical_points || []).map(p => '"' + p.replace(/"/g, '\\"') + '"').join(',')}}`,
+			ai_who_benefits: parsed.who_benefits,
+			ai_who_is_hurt: parsed.who_is_hurt,
+			ai_reasoning: parsed.reasoning || null,
+			ai_alignment: parsed.alignment || null,
+			ai_impact_tier: (impactTier >= 1 && impactTier <= 6) ? impactTier : 4,
+			ai_confidence: confidence,
+			ai_tags: `{${(parsed.tags || []).join(',')}}`,
+			ai_summary_updated_at: new Date().toISOString(),
+			ai_summary_text_url: bill.bill_text_url || null
+		});
+
+		return { ok: true, noText };
+	} catch (err) {
+		return { ok: false, error: err.message };
+	}
+}
+
+/**
+ * Runs `processBill` over `bills` with up to `concurrency` in flight at once.
+ * Each worker pulls the next index off a shared cursor — order of completion
+ * isn't the queue order, so progress is logged by completion count, not
+ * position. A worker pauses briefly between its own calls to stay polite to
+ * the API; with N workers that's still up to N requests in flight together.
+ */
+async function runPool(bills, concurrency) {
+	let nextIndex = 0;
+	let completed = 0;
+	let success = 0;
+	let failed = 0;
+
+	async function worker() {
+		while (true) {
+			const i = nextIndex++;
+			if (i >= bills.length) return;
+			const bill = bills[i];
+
+			const result = await processBill(bill);
+			completed++;
+
+			if (result.ok) {
+				success++;
+				const note = result.noText ? ' (no bill text — used description)' : '';
+				console.log(`   ✅ [${completed}/${bills.length}] ${bill.bill_number}: ${bill.title.slice(0, 60)}...${note}`);
+			} else {
+				failed++;
+				console.error(`   ❌ [${completed}/${bills.length}] ${bill.bill_number}: ${result.error}`);
+			}
+
+			if (nextIndex < bills.length) {
+				await new Promise((r) => setTimeout(r, 150));
+			}
+		}
+	}
+
+	const workerCount = Math.min(concurrency, bills.length);
+	await Promise.all(Array.from({ length: workerCount }, () => worker()));
+	return { success, failed };
+}
+
+// ─────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────
 
@@ -398,70 +504,8 @@ async function run() {
 		return;
 	}
 
-	let success = 0;
-	let failed = 0;
-
-	for (let i = 0; i < bills.length; i++) {
-		const bill = bills[i];
-
-		try {
-			// Fetch sponsor names
-			const sponsors = await supabaseFetch(
-				'bill_sponsors',
-				`select=members(full_name)&bill_id=eq.${bill.id}`
-			);
-			const sponsorNames = sponsors
-				.map((s) => s.members?.full_name)
-				.filter(Boolean);
-
-			// Fetch full bill text from WV Legislature website
-			const billText = await fetchBillText(bill.bill_text_url);
-			if (!billText) {
-				console.log(`   ⚠ [${i + 1}/${bills.length}] ${bill.bill_number}: No bill text available, using description only`);
-			}
-
-			const prompt = buildPrompt(bill, sponsorNames, billText);
-			const response = await callClaude(prompt);
-
-			// Parse JSON response
-			let parsed;
-			try {
-				parsed = JSON.parse(response);
-			} catch {
-				const match = response.match(/\{[\s\S]*\}/);
-				if (match) parsed = JSON.parse(match[0]);
-				else throw new Error('Could not parse AI response as JSON');
-			}
-
-			// Write to database
-			const impactTier = parseInt(parsed.impact_tier);
-			const confidence = ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : null;
-			await supabasePatch('bills', bill.id, {
-				ai_summary: parsed.summary,
-				ai_critical_points: `{${(parsed.critical_points || []).map(p => '"' + p.replace(/"/g, '\\"') + '"').join(',')}}`,
-				ai_who_benefits: parsed.who_benefits,
-				ai_who_is_hurt: parsed.who_is_hurt,
-				ai_reasoning: parsed.reasoning || null,
-				ai_alignment: parsed.alignment || null,
-				ai_impact_tier: (impactTier >= 1 && impactTier <= 6) ? impactTier : 4,
-				ai_confidence: confidence,
-				ai_tags: `{${(parsed.tags || []).join(',')}}`,
-				ai_summary_updated_at: new Date().toISOString(),
-				ai_summary_text_url: bill.bill_text_url || null
-			});
-
-			success++;
-			console.log(`   ✅ [${i + 1}/${bills.length}] ${bill.bill_number}: ${bill.title.slice(0, 60)}...`);
-
-			// Small delay between calls to be kind to the API
-			if (i < bills.length - 1) {
-				await new Promise((r) => setTimeout(r, 150));
-			}
-		} catch (err) {
-			failed++;
-			console.error(`   ❌ [${i + 1}/${bills.length}] ${bill.bill_number}: ${err.message}`);
-		}
-	}
+	console.log(`   Concurrency: ${concurrency}\n`);
+	const { success, failed } = await runPool(bills, concurrency);
 
 	const duration = Date.now() - startTime;
 	const mins = Math.floor(duration / 60000);
