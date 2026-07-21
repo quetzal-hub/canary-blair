@@ -1,7 +1,7 @@
 <script>
 	import DigestCard from '$lib/components/DigestCard.svelte';
 	import BillCard from '$lib/components/BillCard.svelte';
-	import { getTierData, scoreColor } from '$lib/utils.js';
+	import { getTierData, scoreColor, formatDate } from '$lib/utils.js';
 
 	let { data } = $props();
 </script>
@@ -18,6 +18,15 @@
 			Plain language. No accounts. No tracking. Free forever.
 		</p>
 	</section>
+
+	{#if data.currentSession && !data.sessionActive}
+		<div class="session-banner">
+			<span aria-hidden="true">🕊️</span>
+			{data.currentSession.name} has concluded.
+			{#if data.lastVoteDate}Last floor vote was {formatDate(data.lastVoteDate)}.{/if}
+			Bills below reflect how the session ended, not what's currently pending.
+		</div>
+	{/if}
 
 	{#if data.digest}
 		<section class="digest-section">
@@ -87,11 +96,16 @@
 		</section>
 	{/if}
 
-	<!-- Bills to Watch -->
+	<!-- Bills to Watch / Most Impactful Bills of the Session -->
 	{#if data.peopleBills.length > 0 || data.capitalBills.length > 0}
 		<section class="bills-watch">
-			<h2>Bills to Watch</h2>
-			<p class="bills-watch-sub">The highest-impact active bills right now — what's at stake for West Virginia.</p>
+			{#if data.sessionActive}
+				<h2>Bills to Watch</h2>
+				<p class="bills-watch-sub">The highest-impact active bills right now — what's at stake for West Virginia.</p>
+			{:else}
+				<h2>Most Impactful Bills{data.currentSession ? ` of the ${data.currentSession.year_start} Session` : ''}</h2>
+				<p class="bills-watch-sub">The bills that mattered most this session, for better or worse — now decided.</p>
+			{/if}
 			<div class="bills-watch-grid">
 				{#if data.peopleBills.length > 0}
 					<div class="bills-watch-col">
@@ -144,6 +158,18 @@
 		margin: 0 auto;
 		color: var(--color-text-muted);
 		font-size: 1rem;
+		line-height: 1.6;
+	}
+
+	.session-banner {
+		margin-bottom: var(--space-lg);
+		padding: var(--space-md);
+		background: var(--color-bg-raised);
+		border: 1px solid var(--color-border);
+		border-left: 3px solid var(--color-accent);
+		border-radius: 8px;
+		font-size: 0.9375rem;
+		color: var(--color-text-muted);
 		line-height: 1.6;
 	}
 
