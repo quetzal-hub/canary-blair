@@ -460,6 +460,15 @@ npm run finance-eid-import finance-eids.csv -- --commit   # write the confirmed 
 
 Leave a row's `eid` blank if you can't confidently confirm the match — skipping is safer than guessing.
 
+### Legislator photo sync (optional)
+
+Populates `members.photo_url` from the WV Legislature's own public roster pages (official photos of public officials, hosted by the state) — LegiScan's data has no photo field. Matches by name (last name + first name/nickname), not district: WV Senate districts elect two senators each, so district+chamber isn't a unique key there. Every matched image is verified live before being trusted, and members who don't match cleanly (a vacant seat, a since-replaced member, a name spelled differently between sources) are reported, never guessed. Dry-run by default:
+
+```bash
+npm run photos            # dry run: show what would change
+npm run photos -- --commit   # write photo_url to the database
+```
+
 ### Classification accuracy eval
 
 Measures how often the AI's bill classification agrees with your own human judgment — the honest way to know whether a prompt change actually helped. Copy the template, hand-label 30–50 real bills, and run it:
