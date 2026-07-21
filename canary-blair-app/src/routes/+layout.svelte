@@ -66,9 +66,9 @@
 			</div>
 			<p class="footer-legal">
 				Legislative data from <a href="https://legiscan.com/" target="_blank" rel="noopener noreferrer">LegiScan</a>.
-				Canary Scores are calculated from the public record and AI bill classification, which is
-				imperfect — every score links to the votes behind it.
-				<a href="/feeds">RSS feeds</a>.
+				Canary Scores are commentary — our opinion, calculated from the public record and imperfect AI
+				classification, with every score linked to the votes behind it. See
+				<a href="/terms">Terms &amp; Methodology</a>. <a href="/feeds">RSS feeds</a>.
 			</p>
 		</div>
 	</footer>

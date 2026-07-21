@@ -276,8 +276,10 @@
 	{/if}
 
 	<p class="score-note">
-		Score calculated from AI-classified bill votes and sponsorships. Updated weekly. Bill classification
-		is AI-generated and may not reflect every nuance. Legislative data from
+		The Canary Score is our opinion — a consistent methodology applied to {member.full_name}'s own
+		voting and sponsorship record. It is not a statement of fact about their character. The bill
+		classification behind it is AI-generated and imperfect; expand any score to check the votes yourself,
+		or <a href="/terms">read the full methodology</a>. Legislative data from
 		<a href="https://legiscan.com/" target="_blank" rel="noopener noreferrer">LegiScan</a>.
 	</p>
 </div>

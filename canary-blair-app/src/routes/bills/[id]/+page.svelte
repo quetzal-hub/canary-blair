@@ -3,6 +3,7 @@
 	import TagPill from '$lib/components/TagPill.svelte';
 	import VoteTable from '$lib/components/VoteTable.svelte';
 	import PartyBadge from '$lib/components/PartyBadge.svelte';
+	import ReportClassification from '$lib/components/ReportClassification.svelte';
 	import { formatDate, chamberLabel, getBillImpactTier } from '$lib/utils.js';
 
 	let { data } = $props();
@@ -102,6 +103,7 @@
 						{/each}
 					</div>
 				{/if}
+				<ReportClassification billId={bill.id} />
 			</div>
 		{:else}
 			<p class="placeholder">Summary coming soon.</p>

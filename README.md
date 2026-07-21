@@ -335,6 +335,7 @@ schema/009_current_members.sql           # sitting vs. former legislator flag
 schema/010_committees.sql                # committees + bill→committee association
 schema/011_finance.sql                   # campaign-finance columns (money-in-politics)
 schema/012_bill_reasoning.sql            # AI reasoning + confidence on each classification
+schema/013_classification_reports.sql    # public "report a misclassification" queue
 ```
 
 Paste each file's contents into the SQL editor and click **Run**. After each file, you should see no errors. After `001_initial.sql`, you can verify the tables were created by checking the **Table Editor** in your Supabase dashboard.
