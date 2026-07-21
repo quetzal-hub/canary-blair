@@ -22,13 +22,16 @@ import {
 	fetchAllRows
 } from './lib/scoring.js';
 import { STATE_CONFIG } from './lib/state-config.js';
-import { CLAUDE_MODEL, THINKING_DISABLED, extractText } from './lib/ai-config.js';
+import { CLAUDE_MODEL, THINKING_DISABLED, THINKING_ADAPTIVE, extractText } from './lib/ai-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
 
 const SUMMARIZE_MAX_TOKENS = 1000;
+// Bill classification runs with adaptive thinking, so it needs headroom for
+// thinking tokens plus the JSON answer.
+const BILL_MAX_TOKENS = 3000;
 const PROFILE_MAX_TOKENS = 1500;
 const DIGEST_MAX_TOKENS = 1000;
 
@@ -52,6 +55,16 @@ ${STATE_CONFIG.demonymSingular} can understand, regardless of education level.
 Be direct. Be clear. Be unflinching. Don't soften corporate or political interests.
 Don't editorialize — just explain what is actually happening.
 
+BE RIGOROUS, NOT REFLEXIVE. This is the core of your credibility. A bill is NOT
+'for_capital' merely because a corporation is involved — only if it primarily
+benefits capital at the expense of ordinary ${STATE_CONFIG.demonym}. Many bills
+genuinely help people; classify those accurately. Over-labeling bills as
+anti-people is itself a distortion that destroys trust. Judge ONLY what the
+bill's text actually does — ignore which party sponsored it. Base your analysis
+on this bill's specific provisions (named parties, dollar amounts, mechanisms),
+never on assumptions about the topic or who introduced it. If you cannot name a
+specific group that clearly gains or loses, the alignment is 'neutral'.
+
 IMPORTANT: When analyzing who is hurt, consider ALL impacts — environmental damage,
 reduced oversight, weakened protections, lost public input, health risks, pollution,
 water contamination, worker safety, etc. A bill that reduces environmental regulation
@@ -67,9 +80,11 @@ Respond ONLY with a JSON object. No preamble, no markdown fences.
   "critical_points": ["Array of up to 10 bullet points highlighting key provisions, dollar amounts, deadlines, thresholds, exemptions, and other concrete details from the bill. Each bullet should be one clear sentence. For short bills, fewer points are fine — aim for 10 on longer bills."],
   "who_benefits": "1-3 sentences. Who gains from this bill passing? Be specific — name industries, groups, or interests when relevant.",
   "who_is_hurt": "1-3 sentences. Who loses or bears costs if this passes? Consider environmental harm, reduced oversight, public health risks, lost worker protections, and community impacts. If no one is clearly hurt, say so honestly.",
+  "reasoning": "1-2 sentences naming the concrete mechanism behind your alignment call — who specifically gains or loses and how, grounded in the bill's actual provisions. This is the basis for the label.",
   "alignment": "One of: 'for_people' (primarily benefits ordinary ${STATE_CONFIG.demonym}, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries such as ${STATE_CONFIG.extractiveIndustries}, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics. ${STATE_CONFIG.energyGuidance}",
   "impact_tier": "Integer 1-6 rating how consequential this bill is. This is INDEPENDENT of alignment — it measures magnitude of real-world impact, not direction. 1 = LANDMARK: Transformative structural change affecting thousands of ${STATE_CONFIG.demonym} (e.g. gutting clean water protections statewide, major healthcare expansion, sweeping education overhaul). 2 = HIGH IMPACT: Significant real-world consequences for communities, health, environment, or livelihoods (e.g. weakening mine safety rules, expanding Medicaid eligibility, major tax shifts). 3 = MEANINGFUL: Clear benefit or harm but narrower scope — affects a specific group, region, or sector (e.g. teacher pay raise, single-industry regulation change). 4 = ROUTINE: Standard legislation with modest impact (e.g. updating licensing requirements, adjusting administrative procedures). 5 = MINOR: Small procedural tweaks, technical amendments, or housekeeping changes. 6 = CEREMONIAL: Resolutions, namings, commemorations, symbolic acts with no policy impact. Be honest — most bills are tier 3-5. Reserve tier 1 for bills that would fundamentally change how ${STATE_CONFIG.name} works. A bill that touches water, environment, or public health in ${STATE_CONFIG.localStakesNote} should be weighted MORE seriously.",
-  "tags": ["array", "of", "topic", "tags"]
+  "tags": ["array", "of", "topic", "tags"],
+  "confidence": "One of 'high', 'medium', 'low' — your confidence in the alignment call. Use 'low' when the bill is ambiguous, highly technical, or the available text is too thin to judge who it really benefits. Being honest about uncertainty is required; a low-confidence call gets flagged for human review rather than trusted blindly."
 }
 
 Available tags (use only relevant ones, can add your own):
@@ -119,11 +134,11 @@ class AIWorker {
 
 	// ── API Helpers ─────────────────────────
 
-	async callClaude(userPrompt, maxTokens = SUMMARIZE_MAX_TOKENS, systemPrompt = null) {
+	async callClaude(userPrompt, maxTokens = SUMMARIZE_MAX_TOKENS, systemPrompt = null, thinking = THINKING_DISABLED) {
 		const body = {
 			model: CLAUDE_MODEL,
 			max_tokens: maxTokens,
-			thinking: THINKING_DISABLED,
+			thinking,
 			messages: [{ role: 'user', content: userPrompt }]
 		};
 		if (systemPrompt) {
@@ -249,7 +264,10 @@ ${textSection}`.trim();
 		const billText = await this.fetchBillText(bill.bill_text_url);
 
 		const userPrompt = this.buildBillUserPrompt(bill, sponsorNames, billText);
-		const response = await this.callClaude(userPrompt, SUMMARIZE_MAX_TOKENS, BILL_SYSTEM_PROMPT);
+		// Classification is the highest-stakes call — let the model reason first
+		// (adaptive thinking) with a generous budget, since thinking tokens count
+		// against max_tokens.
+		const response = await this.callClaude(userPrompt, BILL_MAX_TOKENS, BILL_SYSTEM_PROMPT, THINKING_ADAPTIVE);
 
 		let parsed;
 		try {
@@ -261,6 +279,7 @@ ${textSection}`.trim();
 		}
 
 		const impactTier = parseInt(parsed.impact_tier);
+		const confidence = ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : null;
 		// Arrays are sent as plain JSON — PostgREST converts them to text[]
 		// safely, unlike hand-built `{a,b}` literals which break on commas/quotes.
 		await this.dbPatch('bills', billId, {
@@ -268,12 +287,17 @@ ${textSection}`.trim();
 			ai_critical_points: parsed.critical_points || [],
 			ai_who_benefits: parsed.who_benefits,
 			ai_who_is_hurt: parsed.who_is_hurt,
+			ai_reasoning: parsed.reasoning || null,
 			ai_alignment: parsed.alignment || null,
 			ai_impact_tier: impactTier >= 1 && impactTier <= 6 ? impactTier : 4,
+			ai_confidence: confidence,
 			ai_tags: parsed.tags || [],
 			ai_summary_updated_at: new Date().toISOString(),
 			ai_summary_text_url: bill.bill_text_url || null
 		});
+		if (confidence === 'low') {
+			console.log(`   ⚠ low-confidence classification on ${bill.bill_number} — consider human review`);
+		}
 
 		console.log(`✅ Summarized bill ${bill.bill_number}: ${bill.title.slice(0, 60)}...`);
 	}

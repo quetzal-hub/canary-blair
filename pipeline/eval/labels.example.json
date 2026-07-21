@@ -1,0 +1,8 @@
+{
+  "_readme": "Human-labeled bills for measuring AI classification accuracy. Copy this file to pipeline/eval/labels.json and replace the examples with your OWN judgment on 30-50 real bills (find their IDs in the app URL: /bills/<id>). Then run `npm run eval` to see how often the AI agrees with you. Tweak the prompt, re-summarize, and re-run to see the number move — that's how you make classification provably more correct instead of just differently-worded.",
+  "labels": [
+    { "bill_id": 1234567, "alignment": "for_people", "impact_tier": 2, "notes": "Expands Medicaid eligibility — clear benefit to low-income residents" },
+    { "bill_id": 1234568, "alignment": "for_capital", "impact_tier": 1, "notes": "Guts water-quality permitting for extractive industry" },
+    { "bill_id": 1234569, "alignment": "neutral", "impact_tier": 5, "notes": "Renames a state road" }
+  ]
+}

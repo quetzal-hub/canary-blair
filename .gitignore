@@ -5,3 +5,7 @@ build/
 .wrangler/
 .DS_Store
 *.local
+
+# Your working eval labels (the committed example is the template).
+# Remove this line if you'd rather version-control your labels.
+pipeline/eval/labels.json

@@ -52,6 +52,9 @@
 				{:else if bill.ai_alignment === 'neutral'}
 					<span class="alignment-badge alignment-neutral">Neutral</span>
 				{/if}
+				{#if bill.ai_confidence === 'low'}
+					<span class="confidence-badge" title="The AI flagged this classification as low-confidence — treat it with caution; it's a candidate for human review.">⚠ low confidence</span>
+				{/if}
 			</div>
 		{/if}
 	</header>
@@ -74,6 +77,12 @@
 					<div class="ai-item">
 						<h3>Who is hurt</h3>
 						<p>{bill.ai_who_is_hurt}</p>
+					</div>
+				{/if}
+				{#if bill.ai_reasoning}
+					<div class="ai-item">
+						<h3>Why this classification</h3>
+						<p>{bill.ai_reasoning}</p>
 					</div>
 				{/if}
 				{#if bill.ai_critical_points?.length}
@@ -249,6 +258,15 @@
 	.alignment-people { background: #16a34a20; color: #16a34a; border: 1px solid #16a34a40; }
 	.alignment-capital { background: #dc262620; color: #dc2626; border: 1px solid #dc262640; }
 	.alignment-neutral { background: #6b728020; color: #6b7280; border: 1px solid #6b728040; }
+	.confidence-badge {
+		font-size: 0.75rem;
+		font-weight: 600;
+		padding: 0.125rem 0.5rem;
+		border-radius: 4px;
+		background: var(--color-bg-hover);
+		color: var(--color-text-muted);
+		border: 1px solid var(--color-border);
+	}
 
 	.critical-points {
 		list-style: disc;

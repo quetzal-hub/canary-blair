@@ -334,6 +334,7 @@ schema/008_ai_overrides.sql              # human override columns for AI misclas
 schema/009_current_members.sql           # sitting vs. former legislator flag
 schema/010_committees.sql                # committees + bill→committee association
 schema/011_finance.sql                   # campaign-finance columns (money-in-politics)
+schema/012_bill_reasoning.sql            # AI reasoning + confidence on each classification
 ```
 
 Paste each file's contents into the SQL editor and click **Run**. After each file, you should see no errors. After `001_initial.sql`, you can verify the tables were created by checking the **Table Editor** in your Supabase dashboard.
@@ -424,6 +425,16 @@ FTM_API_KEY=... node pipeline/finance.js --commit   # write to the database
 ```
 
 The exact FollowTheMoney total field isn't publicly documented, so verify the dry-run numbers against the FollowTheMoney entity page before committing; adjust `extractTotalRaised()` in `pipeline/finance.js` if needed.
+
+### Classification accuracy eval
+
+Measures how often the AI's bill classification agrees with your own human judgment — the honest way to know whether a prompt change actually helped. Copy the template, hand-label 30–50 real bills, and run it:
+
+```bash
+cp pipeline/eval/labels.example.json pipeline/eval/labels.json
+# fill labels.json with your judgment, then:
+npm run eval
+```
 
 ### Scoring engine tests
 
@@ -591,7 +602,14 @@ Legislative data is provided by **[LegiScan](https://legiscan.com/)**, a nonpart
 
 Canary Blair's sync pipeline uses a **change-hash delta approach** — it only fetches full bill details when a bill has actually changed, keeping API usage far below the monthly limit even during active legislative sessions.
 
-**On accuracy.** Vote and sponsorship records come straight from the public legislative record and are reproduced verbatim. The Canary Score is deterministic math on that record — but the *bill classification* it depends on (alignment and impact tier) is AI-generated and imperfect. The project is built to be honest about that: every score links to the votes behind it, the disclaimer appears on every surface a score does, and a human can override a misclassified bill through an audit-trailed mechanism that displays a "manually reviewed" note. Across hundreds of votes, the pattern holds even when an individual bill is miscategorized.
+**On accuracy.** Vote and sponsorship records come straight from the public legislative record and are reproduced verbatim. The Canary Score is deterministic math on that record — but the *bill classification* it depends on (alignment and impact tier) is AI-generated and imperfect. The project is built to be honest about that:
+
+- **The classifier reasons before it labels.** The bill-classification call runs with adaptive thinking and a calibration instruction that tells the model to be *rigorous, not reflexive* — a corporation being involved doesn't make a bill "for capital," it must judge the bill's actual provisions, and it must ignore which party sponsored it.
+- **It reports a `reasoning` and a `confidence` for every call.** The "why this classification" is shown on each bill page, and low-confidence calls are flagged (`⚠ low confidence`) as candidates for human review.
+- **Humans can override** a misclassified bill through an audit-trailed mechanism that displays a "manually reviewed" note, and every score links to the votes behind it.
+- **You can measure it.** `npm run eval` compares the AI's classifications against your own hand-labeled bills (see [pipeline/eval/](pipeline/eval/)) and reports agreement — so prompt changes can be validated with a number, not a vibe.
+
+Across hundreds of votes, the pattern holds even when an individual bill is miscategorized.
 
 Historical photo attribution for the Blair Mountain imagery is included on the About page.
 

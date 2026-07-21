@@ -21,7 +21,7 @@
  */
 import 'dotenv/config';
 import { STATE_CONFIG } from './lib/state-config.js';
-import { CLAUDE_MODEL, THINKING_DISABLED, extractText } from './lib/ai-config.js';
+import { CLAUDE_MODEL, THINKING_ADAPTIVE, extractText } from './lib/ai-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -38,7 +38,7 @@ if (!ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 // Model is set in lib/ai-config.js (shared with the AI worker).
-const MAX_TOKENS = 1000;
+const MAX_TOKENS = 3000; // headroom for adaptive thinking + the JSON answer
 
 // ─────────────────────────────────────────
 // CLI ARGS
@@ -117,7 +117,7 @@ async function callClaude(prompt) {
 		body: JSON.stringify({
 			model: CLAUDE_MODEL,
 			max_tokens: MAX_TOKENS,
-			thinking: THINKING_DISABLED,
+			thinking: THINKING_ADAPTIVE, // reason before classifying (extractText skips thinking blocks)
 			messages: [{ role: 'user', content: prompt }]
 		})
 	});
@@ -183,6 +183,14 @@ ${STATE_CONFIG.demonymSingular} can understand, regardless of education level.
 Be direct. Be clear. Be unflinching. Don't soften corporate or political interests.
 Don't editorialize — just explain what is actually happening.
 
+BE RIGOROUS, NOT REFLEXIVE. A bill is NOT 'for_capital' merely because a corporation
+is involved — only if it primarily benefits capital at the expense of ordinary
+${STATE_CONFIG.demonym}. Many bills genuinely help people; classify those accurately.
+Over-labeling bills as anti-people is itself a distortion that destroys trust. Judge
+ONLY what the bill's text actually does — ignore which party sponsored it. Base your
+analysis on this bill's specific provisions, not assumptions about the topic or
+sponsor. If you cannot name a specific group that clearly gains or loses, it's 'neutral'.
+
 IMPORTANT: When analyzing who is hurt, consider ALL impacts — environmental damage,
 reduced oversight, weakened protections, lost public input, health risks, pollution,
 water contamination, worker safety, etc. A bill that reduces environmental regulation
@@ -203,9 +211,11 @@ Respond ONLY with a JSON object. No preamble, no markdown fences.
   "critical_points": ["Array of up to 10 bullet points highlighting key provisions, dollar amounts, deadlines, thresholds, exemptions, and other concrete details from the bill. Each bullet should be one clear sentence. For short bills, fewer points are fine — aim for 10 on longer bills."],
   "who_benefits": "1-3 sentences. Who gains from this bill passing? Be specific — name industries, groups, or interests when relevant.",
   "who_is_hurt": "1-3 sentences. Who loses or bears costs if this passes? Consider environmental harm, reduced oversight, public health risks, lost worker protections, and community impacts. If no one is clearly hurt, say so honestly.",
+  "reasoning": "1-2 sentences naming the concrete mechanism behind your alignment call — who specifically gains or loses and how, grounded in the bill's actual provisions.",
   "alignment": "One of: 'for_people' (primarily benefits ordinary ${STATE_CONFIG.demonym}, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries such as ${STATE_CONFIG.extractiveIndustries}, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics. ${STATE_CONFIG.energyGuidance}",
   "impact_tier": "Integer 1-6 rating how consequential this bill is. This is INDEPENDENT of alignment — it measures magnitude of real-world impact, not direction. 1 = LANDMARK: Transformative structural change affecting thousands of ${STATE_CONFIG.demonym} (e.g. gutting clean water protections statewide, major healthcare expansion, sweeping education overhaul). 2 = HIGH IMPACT: Significant real-world consequences for communities, health, environment, or livelihoods (e.g. weakening mine safety rules, expanding Medicaid eligibility, major tax shifts). 3 = MEANINGFUL: Clear benefit or harm but narrower scope — affects a specific group, region, or sector (e.g. teacher pay raise, single-industry regulation change). 4 = ROUTINE: Standard legislation with modest impact (e.g. updating licensing requirements, adjusting administrative procedures). 5 = MINOR: Small procedural tweaks, technical amendments, or housekeeping changes. 6 = CEREMONIAL: Resolutions, namings, commemorations, symbolic acts with no policy impact. Be honest — most bills are tier 3-5. Reserve tier 1 for bills that would fundamentally change how ${STATE_CONFIG.name} works. A bill that touches water, environment, or public health in ${STATE_CONFIG.localStakesNote} should be weighted MORE seriously.",
-  "tags": ["array", "of", "topic", "tags"]
+  "tags": ["array", "of", "topic", "tags"],
+  "confidence": "One of 'high', 'medium', 'low' — your confidence in the alignment call. Use 'low' when the bill is ambiguous or the text is too thin to judge who it really benefits. Honesty about uncertainty is required."
 }
 
 Available tags (use only relevant ones, can add your own):
@@ -349,13 +359,16 @@ async function run() {
 
 			// Write to database
 			const impactTier = parseInt(parsed.impact_tier);
+			const confidence = ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : null;
 			await supabasePatch('bills', bill.id, {
 				ai_summary: parsed.summary,
 				ai_critical_points: `{${(parsed.critical_points || []).map(p => '"' + p.replace(/"/g, '\\"') + '"').join(',')}}`,
 				ai_who_benefits: parsed.who_benefits,
 				ai_who_is_hurt: parsed.who_is_hurt,
+				ai_reasoning: parsed.reasoning || null,
 				ai_alignment: parsed.alignment || null,
 				ai_impact_tier: (impactTier >= 1 && impactTier <= 6) ? impactTier : 4,
+				ai_confidence: confidence,
 				ai_tags: `{${(parsed.tags || []).join(',')}}`,
 				ai_summary_updated_at: new Date().toISOString(),
 				ai_summary_text_url: bill.bill_text_url || null

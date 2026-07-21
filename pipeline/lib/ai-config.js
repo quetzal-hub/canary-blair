@@ -24,6 +24,16 @@ export const CLAUDE_MODEL = 'claude-sonnet-5';
 export const THINKING_DISABLED = { type: 'disabled' };
 
 /**
+ * Adaptive thinking — let the model reason before it answers. Reserved for the
+ * bill CLASSIFICATION call (alignment + impact tier), the project's highest-
+ * stakes judgment, where reasoning-before-labeling materially improves
+ * accuracy. extractText() skips the resulting thinking blocks, so JSON parsing
+ * is unaffected. Callers using this MUST allow generous max_tokens (thinking
+ * tokens count against the budget) — see the summarize call.
+ */
+export const THINKING_ADAPTIVE = { type: 'adaptive' };
+
+/**
  * Pull the assistant's text out of a Messages API response, skipping any
  * non-text blocks (e.g. thinking) so a model or default change can't silently
  * break JSON parsing. Returns '' if there's no text block.
