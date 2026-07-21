@@ -79,6 +79,7 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - Complete sponsored bills list
 - Paginated full vote history, filterable by Yea / Nay / NV / Absent
 - Bills whose AI classification a human reviewed and corrected are marked with a ✏️ note
+- **Next election year** and **leadership title** (Speaker, Majority Leader, Whip, etc.) — the House's is fully computable (every seat shares one 2-year cycle, so no per-member data is needed); the Senate's staggered 4-year terms would need a data source we haven't found for free yet (see the "photo + leadership sync" section for how the leadership title is populated)
 
 **RSS Feeds (`/feeds`)**
 - Anonymous, account-free way to follow the legislature — the right alert channel for a no-tracking project
@@ -463,13 +464,13 @@ npm run finance-eid-import finance-eids.csv -- --commit   # write the confirmed 
 
 Leave a row's `eid` blank if you can't confidently confirm the match — skipping is safer than guessing.
 
-### Legislator photo sync (optional)
+### Legislator photo + leadership sync (optional)
 
-Populates `members.photo_url` from the WV Legislature's own public roster pages (official photos of public officials, hosted by the state) — LegiScan's data has no photo field. Matches by name (last name + first name/nickname), not district: WV Senate districts elect two senators each, so district+chamber isn't a unique key there. Every matched image is verified live before being trusted, and members who don't match cleanly (a vacant seat, a since-replaced member, a name spelled differently between sources) are reported, never guessed. Dry-run by default:
+Populates `members.photo_url` and `members.leadership_title` from the WV Legislature's own public roster pages (official data on public officials, hosted by the state) — LegiScan has neither field. Matches by name (last name + first name/nickname), not district: WV Senate districts elect two senators each, so district+chamber isn't a unique key there. Every matched photo is verified live before being trusted, and members who don't match cleanly (a vacant seat, a since-replaced member, a name spelled differently between sources) are reported, never guessed. Leadership titles (Speaker, Majority Leader, Whip, etc. — not committee chairs) come from the same page's leadership block; a member who leaves a role gets `leadership_title` cleared, not left stale. Requires `schema/015_leadership_title.sql`. Dry-run by default:
 
 ```bash
 npm run photos            # dry run: show what would change
-npm run photos -- --commit   # write photo_url to the database
+npm run photos -- --commit   # write photo_url + leadership_title to the database
 ```
 
 ### Classification accuracy eval

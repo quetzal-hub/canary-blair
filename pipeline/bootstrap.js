@@ -10,7 +10,7 @@
  */
 import 'dotenv/config';
 import AdmZip from 'adm-zip';
-import { STATE_CONFIG } from './lib/state-config.js';
+import { STATE_CONFIG, nextLowerChamberElectionYear } from './lib/state-config.js';
 
 // ─────────────────────────────────────────
 // CONFIG & VALIDATION
@@ -295,6 +295,10 @@ async function run() {
 				role: person.role || null,
 				district: person.district || null,
 				chamber: person.role_id === 1 ? 'H' : 'S',
+				// Only the lower chamber's timing is knowable with no per-member data
+				// (every House seat shares one 2-year cycle). The Senate's staggered
+				// 4-year terms need a real per-senator data source we don't have yet.
+				next_election: person.role_id === 1 ? nextLowerChamberElectionYear() : null,
 				followthemoney_eid: person.ftm_eid || null,
 				votesmart_id: person.votesmart_id || null,
 				opensecrets_id: person.opensecrets_id || null,

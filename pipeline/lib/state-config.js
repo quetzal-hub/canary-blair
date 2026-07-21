@@ -54,5 +54,25 @@ export const STATE_CONFIG = {
 		{ min: 35, tier: 4, name: 'Company Man', emoji: '🪨', tagline: 'Reliable — just not for you.' },
 		{ min: 20, tier: 5, name: 'Rat in the Capitol', emoji: '🐀', tagline: 'Actively working against the people who elected them.' },
 		{ min: 0, tier: 6, name: 'Owned', emoji: '☠️', tagline: 'Congratulations to their donors on their investment.' }
-	]
+	],
+
+	// Lower-chamber term length in years. WV's House of Delegates is 2-year
+	// terms with every seat up together, so "next election" is fully
+	// computable with no per-member data at all. (WV's Senate is staggered
+	// 4-year terms — which class each senator belongs to isn't in any free
+	// data source we've found, so it's left unset rather than guessed; see
+	// the project_election_data_sources memory for what was checked.)
+	lowerChamberTermYears: 2
 };
+
+/**
+ * The next year the lower chamber is up for election, given every seat
+ * shares one election cycle (true for WV's 2-year House terms; not
+ * universally true if this project is forked to a state with staggered
+ * lower-chamber terms, where this function would need real per-member data).
+ * US state elections run in even years, so: this year if it's even, else next year.
+ */
+export function nextLowerChamberElectionYear(now = new Date()) {
+	const year = now.getFullYear();
+	return year % 2 === 0 ? year : year + 1;
+}

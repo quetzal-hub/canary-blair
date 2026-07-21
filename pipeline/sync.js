@@ -17,7 +17,7 @@
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
-import { STATE_CONFIG } from './lib/state-config.js';
+import { STATE_CONFIG, nextLowerChamberElectionYear } from './lib/state-config.js';
 
 const CONFIG = {
   LEGISCAN_API_BASE: 'https://api.legiscan.com/',
@@ -345,6 +345,10 @@ class SyncEngine {
         role:               person.role,
         district:           person.district,
         chamber:            person.role_id === 1 ? 'H' : 'S',
+        // Only the lower chamber's timing is knowable with no per-member data
+        // (every House seat shares one 2-year cycle) — see bootstrap.js's
+        // matching comment for why the Senate is left null.
+        next_election:      person.role_id === 1 ? nextLowerChamberElectionYear() : null,
         followthemoney_eid: person.ftm_eid || null,
         votesmart_id:       person.votesmart_id || null,
         opensecrets_id:     person.opensecrets_id || null,
