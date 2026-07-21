@@ -233,6 +233,35 @@ for_capital even though every taxpayer's rate goes down. If the balance is
 genuinely unclear, use 'neutral' with lowered confidence rather than rewarding
 the visible benefit while ignoring the structural cost.
 
+COMMON DISGUISES. Some recurring bill structures hide who really benefits.
+Check every bill against these patterns:
+- PREEMPTION: a bill stripping cities and counties of the power to regulate
+  something (wages, housing, environment, guns, broadband) is not mere
+  "uniformity." Ask who gains when NO local government can act — usually an
+  industry seeking one weak statewide standard instead of many strong local
+  ones. Judge it by whose regulation dies.
+- DEREGULATION BY PROCEDURE: purely procedural mechanics can still pick
+  winners. Bills that make rules harder to issue or enforce — legislative
+  approval requirements for agency rules, sunset clauses on regulations,
+  penalty caps, audit privilege, shortened statutes of limitations, damage
+  caps, mandatory arbitration — benefit whoever would have been regulated or
+  sued, even though no beneficiary is named in the text.
+- PUBLIC SAFETY FRAMING: new crimes and harsher penalties are not
+  automatically for_people. Ask who is actually policed and who is actually
+  protected: enhanced penalties for protesting near pipelines protect
+  pipelines, not the public; cash-bail and mandatory-minimum expansions fall
+  on poor defendants, with weak evidence they improve safety. Weigh the
+  documented evidence on whether the measure protects people at all.
+- DRAINING THE SHARED SYSTEM: a benefit delivered to individuals by defunding
+  a shared system (vouchers drawn from public-school funding, ratepayer-funded
+  bailouts of private plants, privatization of public services) follows the
+  fiscal-capacity rule — the visible individual benefit does not outweigh the
+  structural defunding unless the evidence shows otherwise.
+These are patterns to CHECK, not verdicts to assume. A licensing reform that
+lowers barriers for workers, or a preemption bill with genuine safety
+justification, can still be for_people or neutral on its merits — judge the
+specific mechanism, not the category.
+
 IMPORTANT: When analyzing who is hurt, consider ALL impacts — environmental damage,
 reduced oversight, weakened protections, lost public input, health risks, pollution,
 water contamination, worker safety, etc. A bill that reduces environmental regulation
@@ -259,7 +288,7 @@ needed; for everything else, shorter is better.
   "who_benefits": "1-3 sentences (up to 5 for complex bills). Who gains from this bill passing? Be specific — name industries, groups, or interests when relevant.",
   "who_is_hurt": "1-3 sentences (up to 5 for complex bills). Who loses or bears costs if this passes? Consider environmental harm, reduced oversight, public health risks, lost worker protections, and community impacts. If no one is clearly hurt, say so honestly.",
   "reasoning": "1-2 sentences naming the concrete mechanism behind your alignment call — who specifically gains or loses and how, grounded in the bill's actual provisions.",
-  "alignment": "One of: 'for_people' (primarily benefits ordinary ${STATE_CONFIG.demonym}, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries such as ${STATE_CONFIG.extractiveIndustries}, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics. ${STATE_CONFIG.energyGuidance}",
+  "alignment": "One of: 'for_people' (primarily benefits ordinary ${STATE_CONFIG.demonym}, workers, communities, environment, public health), 'for_capital' (primarily benefits corporations, extractive industries such as ${STATE_CONFIG.extractiveIndustries}, developers, or reduces protections for people/environment), or 'neutral' (purely procedural, administrative, or genuinely balanced — 'procedural' means it shifts no power and no money; a procedural bill with a clear beneficiary is NOT neutral). A bill that WEAKENS environmental or worker protections is 'for_capital' even if it is tagged with environment or worker topics. ${STATE_CONFIG.energyGuidance}",
   "impact_tier": "Integer 1-6 rating how consequential this bill is. This is INDEPENDENT of alignment — it measures magnitude of real-world impact, not direction. 1 = LANDMARK: Transformative structural change affecting thousands of ${STATE_CONFIG.demonym} (e.g. gutting clean water protections statewide, major healthcare expansion, sweeping education overhaul). 2 = HIGH IMPACT: Significant real-world consequences for communities, health, environment, or livelihoods (e.g. weakening mine safety rules, expanding Medicaid eligibility, major tax shifts). 3 = MEANINGFUL: Clear benefit or harm but narrower scope — affects a specific group, region, or sector (e.g. teacher pay raise, single-industry regulation change). 4 = ROUTINE: Standard legislation with modest impact (e.g. updating licensing requirements, adjusting administrative procedures). 5 = MINOR: Small procedural tweaks, technical amendments, or housekeeping changes. 6 = CEREMONIAL: Resolutions, namings, commemorations, symbolic acts with no policy impact. Be honest — most bills are tier 3-5. Reserve tier 1 for bills that would fundamentally change how ${STATE_CONFIG.name} works. A bill that touches water, environment, or public health in ${STATE_CONFIG.localStakesNote} should be weighted MORE seriously.",
   "tags": ["array", "of", "topic", "tags"],
   "confidence": "One of 'high', 'medium', 'low' — your confidence in the alignment call. Use 'low' when the bill is ambiguous or the text is too thin to judge who it really benefits. Honesty about uncertainty is required."
