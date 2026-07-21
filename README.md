@@ -421,10 +421,11 @@ npm run score
 The raw legislative data is re-derivable from LegiScan (`npm run bootstrap`), so the real value of a backup is protecting what's *expensive* to regenerate — the AI summaries/classifications, human overrides, score history, and classification reports. Dump every table to timestamped JSON:
 
 ```bash
-npm run backup          # writes backups/<timestamp>/*.json (gitignored)
+npm run backup                       # writes backups/<timestamp>/*.json (gitignored)
+npm run restore backups/<timestamp>  # restore a backup into a fresh DB — no Anthropic calls
 ```
 
-Cron it (or run it before risky changes) and copy the folder somewhere safe. Supabase's free tier has no automated backups; the Pro plan adds managed daily backups if you outgrow this.
+`restore` brings everything back (including the AI classifications, so you don't re-pay to regenerate them). Restore into an empty database with the migrations already applied; tables are restored parents-first so foreign keys resolve. Cron the backup (or run it before risky changes) and copy the folder somewhere safe. Supabase's free tier has no automated backups; the Pro plan adds managed daily backups if you outgrow this.
 
 ### Campaign finance sync (optional)
 
