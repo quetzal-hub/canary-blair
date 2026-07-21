@@ -32,7 +32,7 @@ import { formatFinanceSection } from './lib/finance-format.js';
 const SUMMARIZE_MAX_TOKENS = 1000;
 // Bill classification runs with adaptive thinking, so it needs headroom for
 // thinking tokens plus the JSON answer.
-const BILL_MAX_TOKENS = 4000; // adaptive thinking + expanded JSON for complex (tier 1-2) bills
+const BILL_MAX_TOKENS = 6000; // adaptive thinking + expanded JSON for complex (tier 1-2) bills
 const PROFILE_MAX_TOKENS = 1500;
 const DIGEST_MAX_TOKENS = 1000;
 

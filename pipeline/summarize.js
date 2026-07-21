@@ -38,7 +38,7 @@ if (!ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 // Model is set in lib/ai-config.js (shared with the AI worker).
-const MAX_TOKENS = 4000; // headroom for adaptive thinking + expanded JSON on complex (tier 1-2) bills
+const MAX_TOKENS = 6000; // headroom for adaptive thinking + expanded JSON on complex (tier 1-2) bills
 
 // ─────────────────────────────────────────
 // CLI ARGS
