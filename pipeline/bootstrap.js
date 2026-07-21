@@ -148,6 +148,20 @@ async function deleteAndInsert(table, rows, size = 75) {
 	}
 }
 
+async function patch(table, filter, data) {
+	const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+		method: 'PATCH',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+			apikey: SUPABASE_SERVICE_KEY,
+			Prefer: 'return=minimal'
+		},
+		body: JSON.stringify(data)
+	});
+	if (!res.ok) throw new Error(`Patch ${table} error: ${await res.text()}`);
+}
+
 async function supabaseSelect(table, filter = '') {
 	const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${filter ? '?' + filter : ''}`, {
 		headers: {
@@ -285,6 +299,7 @@ async function run() {
 				votesmart_id: person.votesmart_id || null,
 				opensecrets_id: person.opensecrets_id || null,
 				ballotpedia: person.ballotpedia || null,
+				is_current: true, // in the current session's roster
 				updated_at: new Date().toISOString()
 			});
 
@@ -304,6 +319,17 @@ async function run() {
 
 	await batchUpsert('members', memberRows, 'id', 75);
 	await batchUpsert('member_sessions', memberSessionRows, 'member_id,session_id', 75);
+
+	// Anyone NOT in this dataset's people list is a former legislator (or was
+	// never re-added after a prior run). Flip them to is_current=false so the
+	// directory separates sitting members from former ones — never delete.
+	// Mirrors sync.js's syncMembers() reconciliation exactly.
+	const currentIds = memberRows.map((m) => m.id);
+	if (currentIds.length) {
+		await patch('members', `id=not.in.(${currentIds.join(',')})&is_current=eq.true`, {
+			is_current: false
+		});
+	}
 	console.log(`   👥 Processed ${totalMembers} members\n`);
 
 	// ── Step 6: Process bills (batched) ──────
