@@ -235,8 +235,14 @@ export function effectiveImpactTier(bill) {
 export function isReviewed(bill) {
 	return bill?.ai_alignment_override != null || bill?.ai_impact_tier_override != null;
 }
+/** AI confidence discounts a bill's weight until a human confirms the call. */
+export const CONFIDENCE_WEIGHTS = { high: 1, medium: 0.75, low: 0.5 };
+
 export function billWeight(bill) {
-	return TIER_WEIGHTS[effectiveImpactTier(bill)] ?? 1;
+	const tierWeight = TIER_WEIGHTS[effectiveImpactTier(bill)] ?? 1;
+	const confidence =
+		bill?.ai_alignment_override != null ? 1 : (CONFIDENCE_WEIGHTS[bill?.ai_confidence] ?? 1);
+	return tierWeight * confidence;
 }
 
 /** Signed points a single vote contributes. Positive = helped, negative = hurt. */

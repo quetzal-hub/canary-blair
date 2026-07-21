@@ -109,6 +109,14 @@
 			counts far more than a ceremonial resolution.
 		</p>
 		<p>
+			Two fairness rules apply. First, only a legislator's <strong>final vote on each
+			bill</strong> counts — committee votes, readings, and amendment maneuvering are
+			superseded by where they landed on final passage, and no bill counts twice just
+			because it had more roll calls. Second, when the AI is <strong>less confident</strong>
+			in a bill's classification, that bill counts less (half weight for low confidence)
+			until a human reviews and confirms the call.
+		</p>
+		<p>
 			Votes show what you'll tolerate. Sponsorship shows what you believe in.
 		</p>
 		<p>
@@ -199,7 +207,7 @@
 				<span class="badge-icon">💰</span>
 				<div>
 					<strong>Never Met a Corporation They Didn't Like</strong>
-					<p>Voted Yea on 90%+ of bills that benefit corporate and extractive interests over people.</p>
+					<p>Voted Yea on 90%+ of bills that benefit corporate and extractive interests over people (at least 10 such votes on record).</p>
 				</div>
 			</div>
 			<div class="badge-item">

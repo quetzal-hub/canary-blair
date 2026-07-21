@@ -130,13 +130,17 @@ Every WV legislator gets a **Canary Score** from 0–100, calculated mathematica
 
 **How it works:** Every bill gets an AI-assigned alignment (`for_people`, `for_capital`, or `neutral`) and an impact tier from 1 (Landmark, weighted 5×) to 6 (Ceremonial, weighted 0.25×). Votes on aligned bills earn or lose points scaled by the bill's impact weight; skipping a vote costs a small penalty. Sponsorship counts even more than voting — primary sponsors get 3× weight, cosponsors 1.5× — because putting your name on a bill is a stronger signal than going along with a floor vote. The combined raw score is normalized to 0–100. Members need at least 20 scored votes before receiving a score, and scores are recalculated automatically whenever bills change and weekly on a full refresh.
 
+Two fairness rules keep the math honest:
+- **Final vote per bill.** Only a member's vote on a bill's *latest* roll call counts — final passage supersedes committee votes, readings, and amendment maneuvering, and a bill with four roll calls doesn't count 4× as much as one with a single vote.
+- **Confidence-weighted classification.** When the AI reports lower confidence in a bill's alignment call, that bill moves scores less (`low` ×0.5, `medium` ×0.75, `high` ×1.0). A human review-and-override restores full weight — uncertain calls count half until a person confirms them.
+
 **Every score is auditable and permanent.** Each member profile has a "How we got this number" breakdown listing every scored vote and the exact points it contributed — the score is math you can check, not an opinion. Scores are also snapshotted to a permanent history on every recalculation, so once a session adjourns a legislator's tier is locked and cannot be revised away. When the AI misclassifies a bill, a human can correct it with an audit-trailed, publicly-flagged override rather than silently re-running the model.
 
 **Badges** are awarded in addition to the tier score, earned over a legislator's whole career (not one session):
-- 🦅 **Lone Canary** — Voted against their party's majority on a people-first bill at least 3 times
+- 🦅 **Lone Canary** — Bucked their party's majority for the people at least 3 times (Yea on a people-first bill the party opposed, or Nay on a corporate bill the party backed)
 - 👻 **Ghost** — NV or Absent on more than 25% of all votes
 - 📈 **Most Improved** — Canary Score increased 15+ points vs. previous session
-- 💰 **Never Met a Corporation They Didn't Like** — 90%+ of corporate-interest votes were Yea
+- 💰 **Never Met a Corporation They Didn't Like** — 90%+ of corporate-interest votes were Yea (requires at least 10 such votes on record)
 - 🔒 **Lockstep** — Voted with their party 95%+ of the time on scored bills
 - 💧 **Water Protector** — Consistently votes for water/environment bills and against the ones that weaken them
 - 👷 **Friend of the Worker** — Consistently votes for worker-protection bills and against the ones that weaken them

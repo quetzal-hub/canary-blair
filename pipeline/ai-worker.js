@@ -364,11 +364,14 @@ ${textSection}`.trim();
 	async calculateScores() {
 		console.log('🐦 Canary Score calculation starting...');
 
-		// Select override columns too — the engine uses effective (post-override) values.
-		const bills = await fetchAllRows(this.db, 'bills?select=id,ai_tags,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override&ai_tags=not.is.null');
+		// Select override columns too — the engine uses effective (post-override)
+		// values — plus ai_confidence (low-confidence calls are discounted).
+		const bills = await fetchAllRows(this.db, 'bills?select=id,ai_tags,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override,ai_confidence&ai_tags=not.is.null');
 		const votes = await fetchAllRows(this.db, 'votes?select=member_id,vote_value,bill_id,roll_call_id');
 		const members = await fetchAllRows(this.db, 'members?select=id,full_name,party,chamber');
 		const sponsorships = await fetchAllRows(this.db, 'bill_sponsors?select=member_id,bill_id,sponsor_type');
+		// Roll-call dates for final-vote-per-bill dedupe.
+		const rollCalls = await fetchAllRows(this.db, 'roll_calls?select=id,date');
 
 		console.log(`📊 ${bills.length} tagged bills, ${votes.length} votes, ${members.length} members`);
 
@@ -376,7 +379,7 @@ ${textSection}`.trim();
 		const prior = await this.priorSession();
 		const priorScores = prior ? await fetchPriorScores(this.db, prior.id) : new Map();
 
-		const results = scoreMembers({ bills, votes, members, sponsorships, priorScores });
+		const results = scoreMembers({ bills, votes, members, sponsorships, priorScores, rollCalls });
 		const written = await writeScores(this.db, results);
 		if (current) await appendScoreHistory(this.db, results, current.id);
 

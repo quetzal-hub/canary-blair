@@ -35,6 +35,19 @@ export const SPONSOR_WEIGHTS = {
 	2: 1.5 // Cosponsor — you signed on in support
 };
 
+// AI classification confidence scales a bill's weight: an uncertain call moves
+// scores less until a human confirms it. A human alignment override restores
+// full weight (the human judgment supersedes the AI's uncertainty).
+export const CONFIDENCE_WEIGHTS = {
+	high: 1,
+	medium: 0.75,
+	low: 0.5
+};
+
+// The corporate-friend label is the harshest badge — require a real sample
+// before hanging it on anyone (other badges require ≥5; this one ≥10).
+export const CORPORATE_FRIEND_MIN_VOTES = 10;
+
 export const TIER_THRESHOLDS = STATE_CONFIG.tiers;
 
 export const TIER_NAMES = Object.fromEntries(TIER_THRESHOLDS.map((t) => [t.tier, t.name]));
@@ -75,8 +88,44 @@ export function isReviewed(bill) {
 
 export function getBillWeight(bill) {
 	const tier = effectiveImpactTier(bill);
-	if (tier && TIER_WEIGHTS[tier] !== undefined) return TIER_WEIGHTS[tier];
-	return 1; // default to Routine if no tier assigned
+	const tierWeight = tier && TIER_WEIGHTS[tier] !== undefined ? TIER_WEIGHTS[tier] : 1;
+	// Confidence scaling: a human alignment override restores full weight;
+	// otherwise low/medium AI confidence discounts the bill. Legacy rows with
+	// no ai_confidence count full (they predate the confidence field).
+	const confidence =
+		bill.ai_alignment_override != null ? 1 : (CONFIDENCE_WEIGHTS[bill.ai_confidence] ?? 1);
+	return tierWeight * confidence;
+}
+
+/**
+ * Collapse each member's votes to ONE per bill — their vote on the latest roll
+ * call (final passage supersedes committee, reading, and amendment votes).
+ * Without this, a bill with four roll calls counts 4× as much as an identical
+ * bill with one, and a Nay on a hostile amendment reads as a Nay on the bill.
+ *
+ * Ordering: roll call date (via the rollCalls rows), tie-broken by roll_call_id
+ * (LegiScan ids increase over time). Falls back to roll_call_id alone if no
+ * rollCalls provided. Members vote only in their own chamber, so per-member
+ * "latest" is inherently chamber-correct.
+ */
+export function dedupeVotes(votes, rollCalls = []) {
+	const rcDate = new Map();
+	for (const rc of rollCalls) rcDate.set(rc.id, rc.date || '');
+
+	const later = (a, b) => {
+		const da = rcDate.get(a.roll_call_id) || '';
+		const db = rcDate.get(b.roll_call_id) || '';
+		if (da !== db) return da > db ? a : b;
+		return (a.roll_call_id || 0) >= (b.roll_call_id || 0) ? a : b;
+	};
+
+	const kept = new Map(); // "member|bill" → vote row
+	for (const v of votes) {
+		const key = `${v.member_id}|${v.bill_id}`;
+		const prev = kept.get(key);
+		kept.set(key, prev ? later(v, prev) : v);
+	}
+	return [...kept.values()];
 }
 
 export function getTier(score) {
@@ -133,11 +182,15 @@ export function buildBillMap(bills) {
  * @param {Array}  input.members       rows with id, full_name, party, chamber
  * @param {Array}  input.sponsorships  rows with member_id, bill_id, sponsor_type
  * @param {Map}    [input.priorScores] member_id → previous session's canary_score (for Most Improved)
+ * @param {Array}  [input.rollCalls]   rows with id, date — enables date-accurate final-vote dedupe
  * @returns {Array} one result per member:
  *   { id, full_name, party, canary_score, canary_tier, canary_badges, canary_votes_scored }
  */
-export function scoreMembers({ bills, votes, members, sponsorships, priorScores }) {
+export function scoreMembers({ bills, votes: rawVotes, members, sponsorships, priorScores, rollCalls = [] }) {
 	const billMap = buildBillMap(bills);
+
+	// One vote per member per bill: their final-passage position.
+	const votes = dedupeVotes(rawVotes, rollCalls);
 
 	const memberSponsorships = new Map();
 	for (const s of sponsorships) {
@@ -212,7 +265,11 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
 				if (rc && rc[member.party]) {
 					const partyMajority = rc[member.party].yea > rc[member.party].nay ? 1 : 2;
 					if (v.vote_value === partyMajority) partyAlignCount++;
+					// Lone Canary counts BOTH directions of pro-people party-bucking:
+					// Yea on a people bill your party opposed, and Nay on a capital
+					// bill your party supported.
 					if (bill.forPeople && v.vote_value === 1 && partyMajority === 2) crossPartyPeopleCount++;
+					if (bill.forCapital && v.vote_value === 2 && partyMajority === 1) crossPartyPeopleCount++;
 				}
 			}
 
@@ -269,7 +326,7 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
 		const badges = [];
 		if (crossPartyPeopleCount >= 3) badges.push('lone-canary');
 		if (totalVotesAll > 0 && nvAbsentAll / totalVotesAll > 0.25) badges.push('ghost');
-		if (forCapitalVoteTotal > 0 && forCapitalYeaTotal / forCapitalVoteTotal >= 0.9) badges.push('corporate-friend');
+		if (forCapitalVoteTotal >= CORPORATE_FRIEND_MIN_VOTES && forCapitalYeaTotal / forCapitalVoteTotal >= 0.9) badges.push('corporate-friend');
 		if (totalScoredRollCalls > 0 && partyAlignCount / totalScoredRollCalls >= 0.95) badges.push('lockstep');
 		if (waterPeopleRate >= 0.8 && waterCapitalRate <= 0.5 && waterPeopleCount >= 5) badges.push('water-protector');
 		if (workerPeopleRate >= 0.8 && workerCapitalRate <= 0.5 && workerPeopleCount >= 5) badges.push('friend-of-worker');
@@ -303,16 +360,18 @@ export function scoreMembers({ bills, votes, members, sponsorships, priorScores 
  *
  * @returns {{ items: Array, totals: object }}
  */
-export function explainMemberScore({ memberId, bills, votes, sponsorships = [] }) {
+export function explainMemberScore({ memberId, bills, votes: rawVotes, sponsorships = [], rollCalls = [] }) {
 	const billMap = buildBillMap(bills);
 	const billById = new Map(bills.map((b) => [b.id, b]));
+
+	// Same final-vote dedupe as the scorer, so the audit trail matches the score.
+	const votes = dedupeVotes(rawVotes.filter((v) => v.member_id === memberId), rollCalls);
 
 	const items = [];
 	let peopleYea = 0, peopleNay = 0, capitalYea = 0, capitalNay = 0, missed = 0;
 	let votePointTotal = 0;
 
 	for (const v of votes) {
-		if (v.member_id !== memberId) continue;
 		const bill = billMap.get(v.bill_id);
 		if (!bill) continue;
 		const points = votePoints({ forPeople: bill.forPeople, forCapital: bill.forCapital, weight: bill.weight, voteValue: v.vote_value });

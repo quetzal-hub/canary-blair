@@ -9,7 +9,7 @@ const VOTES_PER_PAGE = 30;
 // votes that moved the score most; the rest are folded into the totals.
 const BREAKDOWN_LIMIT = 60;
 
-const BILL_COLS = 'id, bill_number, title, status, status_text, ai_alignment, ai_alignment_override, ai_impact_tier, ai_impact_tier_override';
+const BILL_COLS = 'id, bill_number, title, status, status_text, ai_alignment, ai_alignment_override, ai_impact_tier, ai_impact_tier_override, ai_confidence';
 
 export async function load({ params, url }) {
 	const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
@@ -38,7 +38,7 @@ export async function load({ params, url }) {
 		// it to scored bills only.
 		supabase
 			.from('votes')
-			.select(`vote_value, bills!inner(${BILL_COLS})`)
+			.select(`vote_value, roll_call_id, roll_calls(date), bills!inner(${BILL_COLS})`)
 			.eq('member_id', id)
 			.in('bills.ai_alignment', ['for_people', 'for_capital']),
 		// Permanent score history (schema/007). Table may not exist yet on older
@@ -55,7 +55,21 @@ export async function load({ params, url }) {
 	}
 
 	// ── Build the audit breakdown (mirrors the scoring engine) ──
-	const scoredVotes = scoredVotesRes.data || [];
+	// Same final-vote dedupe as the engine: one vote per bill — the member's
+	// vote on the latest roll call (final passage supersedes amendment votes).
+	const byBill = new Map();
+	for (const v of scoredVotesRes.data || []) {
+		if (!v.bills) continue;
+		const key = v.bills.id;
+		const prev = byBill.get(key);
+		if (!prev) { byBill.set(key, v); continue; }
+		const dPrev = prev.roll_calls?.date || '';
+		const dCur = v.roll_calls?.date || '';
+		if (dCur > dPrev || (dCur === dPrev && (v.roll_call_id || 0) >= (prev.roll_call_id || 0))) {
+			byBill.set(key, v);
+		}
+	}
+	const scoredVotes = [...byBill.values()];
 	const items = [];
 	const totals = { people_yea: 0, people_nay: 0, capital_yea: 0, capital_nay: 0, missed: 0, vote_points: 0, sponsor_points: 0 };
 

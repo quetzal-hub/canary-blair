@@ -15,7 +15,10 @@ import {
 	MIN_SCORED_VOTES,
 	explainMemberScore,
 	effectiveAlignment,
-	getBillWeight
+	getBillWeight,
+	dedupeVotes,
+	CONFIDENCE_WEIGHTS,
+	CORPORATE_FRIEND_MIN_VOTES
 } from '../lib/scoring.js';
 
 // ─── fixture helpers ───────────────────────────────────────
@@ -40,8 +43,8 @@ function votesFor(memberId, bills, voteValue, rollCallId = null) {
 	}));
 }
 
-function run({ bills = [], votes = [], members, sponsorships = [], priorScores }) {
-	return scoreMembers({ bills, votes, members, sponsorships, priorScores });
+function run({ bills = [], votes = [], members, sponsorships = [], priorScores, rollCalls = [] }) {
+	return scoreMembers({ bills, votes, members, sponsorships, priorScores, rollCalls });
 }
 
 const MEMBER = { id: 1, full_name: 'Test Member', party: 'D', chamber: 'H' };
@@ -232,6 +235,107 @@ test('members with no votes at all get a null score and no badges', () => {
 	assert.equal(r.canary_tier, null);
 	assert.equal(r.canary_votes_scored, 0);
 	assert.deepEqual(r.canary_badges, []);
+});
+
+// ─── final-vote dedupe ─────────────────────────────────────
+
+test('only the latest roll call per bill counts — amendment flip-flops are superseded', () => {
+	// One for_people bill with three roll calls: member votes Nay on the two
+	// early (amendment/reading) votes but Yea on final passage. Only the final
+	// Yea should count, so a 20-bill perfect record stays 100.
+	const bills = makeBills(20, { alignment: 'for_people' });
+	const rollCalls = [
+		{ id: 10, date: '2026-01-05' },
+		{ id: 11, date: '2026-01-20' },
+		{ id: 12, date: '2026-02-28' } // final passage
+	];
+	const votes = [
+		...votesFor(1, bills.slice(1), 1), // 19 other bills, one vote each
+		{ member_id: 1, bill_id: bills[0].id, vote_value: 2, roll_call_id: 10 },
+		{ member_id: 1, bill_id: bills[0].id, vote_value: 2, roll_call_id: 11 },
+		{ member_id: 1, bill_id: bills[0].id, vote_value: 1, roll_call_id: 12 }
+	];
+	const [r] = run({ bills, votes, members: [MEMBER], rollCalls });
+	assert.equal(r.canary_votes_scored, 20); // deduped: one vote per bill
+	assert.equal(r.canary_score, 100);
+});
+
+test('dedupeVotes falls back to roll_call_id ordering when no dates are given', () => {
+	const votes = [
+		{ member_id: 1, bill_id: 7, vote_value: 2, roll_call_id: 100 },
+		{ member_id: 1, bill_id: 7, vote_value: 1, roll_call_id: 200 } // later id wins
+	];
+	const deduped = dedupeVotes(votes);
+	assert.equal(deduped.length, 1);
+	assert.equal(deduped[0].vote_value, 1);
+});
+
+test('dedupe is per-member — two members on the same bill both keep a vote', () => {
+	const votes = [
+		{ member_id: 1, bill_id: 7, vote_value: 1, roll_call_id: 100 },
+		{ member_id: 2, bill_id: 7, vote_value: 2, roll_call_id: 100 }
+	];
+	assert.equal(dedupeVotes(votes).length, 2);
+});
+
+// ─── confidence weighting ──────────────────────────────────
+
+test('low-confidence classifications count at half weight until a human confirms', () => {
+	const routine = makeBills(1, { alignment: 'for_people', impactTier: 4 })[0];
+	assert.equal(getBillWeight({ ...routine, ai_confidence: 'high' }), 1);
+	assert.equal(getBillWeight({ ...routine, ai_confidence: 'medium' }), 1 * CONFIDENCE_WEIGHTS.medium);
+	assert.equal(getBillWeight({ ...routine, ai_confidence: 'low' }), 1 * CONFIDENCE_WEIGHTS.low);
+	// Legacy rows without a confidence field count full.
+	assert.equal(getBillWeight(routine), 1);
+	// A human alignment override restores full weight even on a low-confidence call.
+	assert.equal(getBillWeight({ ...routine, ai_confidence: 'low', ai_alignment_override: 'for_people' }), 1);
+});
+
+test('confidence discounting is symmetric — it scales both raw and max score', () => {
+	// All 20 bills low-confidence: every vote is worth half, but so is the
+	// maximum, so a perfect record still normalizes to 100.
+	const bills = makeBills(20, { alignment: 'for_people' }).map((b) => ({ ...b, ai_confidence: 'low' }));
+	const [r] = run({ bills, votes: votesFor(1, bills, 1), members: [MEMBER] });
+	assert.equal(r.canary_score, 100);
+});
+
+// ─── badge guardrails ──────────────────────────────────────
+
+test('corporate-friend badge requires a minimum sample of capital votes', () => {
+	// Yea on every for_capital bill, but below the minimum → no badge.
+	const fewCapital = makeBills(CORPORATE_FRIEND_MIN_VOTES - 1, { alignment: 'for_capital' });
+	const people = makeBills(20, { alignment: 'for_people', startId: 100 });
+	const votes = [...votesFor(1, fewCapital, 1), ...votesFor(1, people, 1)];
+	const [r] = run({ bills: [...fewCapital, ...people], votes, members: [MEMBER] });
+	assert.ok(!r.canary_badges.includes('corporate-friend'));
+
+	// At the minimum, the badge applies.
+	const enough = makeBills(CORPORATE_FRIEND_MIN_VOTES, { alignment: 'for_capital' });
+	const votes2 = [...votesFor(1, enough, 1), ...votesFor(1, people, 1)];
+	const [r2] = run({ bills: [...enough, ...people], votes: votes2, members: [MEMBER] });
+	assert.ok(r2.canary_badges.includes('corporate-friend'));
+});
+
+test('lone-canary also counts Nay votes on capital bills the party supported', () => {
+	// Three D members on 3 for_capital roll calls. D1 votes Nay each time while
+	// D2/D3 vote Yea — party majority is Yea, so D1 bucks the party for the
+	// people three times and earns lone-canary.
+	const bills = makeBills(3, { alignment: 'for_capital' });
+	const votes = [];
+	for (const [i, bill] of bills.entries()) {
+		const rc = 2000 + i;
+		votes.push({ member_id: 1, bill_id: bill.id, vote_value: 2, roll_call_id: rc });
+		votes.push({ member_id: 2, bill_id: bill.id, vote_value: 1, roll_call_id: rc });
+		votes.push({ member_id: 3, bill_id: bill.id, vote_value: 1, roll_call_id: rc });
+	}
+	const members = [
+		MEMBER,
+		{ id: 2, full_name: 'Loyalist A', party: 'D', chamber: 'H' },
+		{ id: 3, full_name: 'Loyalist B', party: 'D', chamber: 'H' }
+	];
+	const results = run({ bills, votes, members });
+	const hero = results.find((r) => r.id === 1);
+	assert.ok(hero.canary_badges.includes('lone-canary'));
 });
 
 // ─── human overrides ───────────────────────────────────────
