@@ -9,9 +9,9 @@
  * person from another state — a wrong match would misattribute real money to
  * the wrong named politician, which is worse than showing nothing).
  *
- * This script writes a CSV with an empty `eid` column and a ready-to-click
- * search link per member. Open the CSV, click each link, find the legislator
- * on FollowTheMoney, and paste the number from their entity page URL
+ * This script writes a CSV (sorted by last name) with an empty `eid` column.
+ * Search followthemoney.org for each legislator by hand, confirm you've got
+ * the right WV officeholder, and paste the number from their entity page URL
  * (…/entity-details?eid=NUMBER) into the eid column. Then run
  * finance-eid-import.js to write the results back to the database.
  *
@@ -21,7 +21,6 @@
  */
 import 'dotenv/config';
 import { writeFileSync } from 'node:fs';
-import { STATE_CONFIG } from './lib/state-config.js';
 import { toCsvRow } from './lib/csv.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -35,28 +34,27 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 const outArg = process.argv.find((a) => a.startsWith('--out='));
 const OUT_PATH = outArg ? outArg.split('=')[1] : 'finance-eids.csv';
 
-const CHAMBER_NAME = { H: 'House of Delegates', S: 'Senate' };
-
 async function fetchMembers() {
 	const res = await fetch(
-		`${SUPABASE_URL}/rest/v1/members?select=id,full_name,party,chamber,district,followthemoney_eid&is_current=eq.true&order=full_name`,
+		`${SUPABASE_URL}/rest/v1/members?select=id,full_name,party,chamber,district,followthemoney_eid&is_current=eq.true`,
 		{ headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, apikey: SUPABASE_SERVICE_KEY } }
 	);
 	if (!res.ok) throw new Error(`DB fetch error: ${await res.text()}`);
 	return res.json();
 }
 
-function searchUrl(member) {
-	const chamber = CHAMBER_NAME[member.chamber] || '';
-	const q = `site:followthemoney.org "${member.full_name}" ${STATE_CONFIG.name} ${chamber}`;
-	return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+/** Last whitespace-separated token of the full name — good enough for sorting this list. */
+function lastName(fullName) {
+	const parts = fullName.trim().split(/\s+/);
+	return parts[parts.length - 1].toLowerCase();
 }
 
 async function run() {
 	console.log('📇 Exporting members for FollowTheMoney entity-id matching...\n');
 	const members = await fetchMembers();
+	members.sort((a, b) => lastName(a.full_name).localeCompare(lastName(b.full_name)));
 
-	const rows = [toCsvRow(['member_id', 'full_name', 'party', 'chamber', 'district', 'search_url', 'eid'])];
+	const rows = [toCsvRow(['member_id', 'full_name', 'party', 'chamber', 'district', 'eid'])];
 	let alreadyMatched = 0;
 	for (const m of members) {
 		if (m.followthemoney_eid) alreadyMatched++;
@@ -67,18 +65,17 @@ async function run() {
 				m.party || '',
 				m.chamber || '',
 				m.district || '',
-				searchUrl(m),
 				m.followthemoney_eid || '' // pre-filled if already matched — leave as-is or correct it
 			])
 		);
 	}
 
 	writeFileSync(OUT_PATH, rows.join('\n') + '\n', 'utf8');
-	console.log(`✅ Wrote ${members.length} members to ${OUT_PATH} (${alreadyMatched} already have an eid)`);
+	console.log(`✅ Wrote ${members.length} members to ${OUT_PATH} (sorted by last name; ${alreadyMatched} already have an eid)`);
 	console.log('\nNext steps:');
-	console.log('  1. Open the CSV (a spreadsheet app makes the search_url column clickable).');
-	console.log('  2. For each row, click the link, confirm it\'s the right person (WV, matching chamber/district),');
-	console.log('     and paste the number from their entity page URL (…/entity-details?eid=NUMBER) into the eid column.');
+	console.log('  1. Open the CSV and search followthemoney.org for each legislator by name.');
+	console.log('  2. Confirm it\'s the right person (WV, matching chamber/district) before using their eid —');
+	console.log('     paste the number from their entity page URL (…/entity-details?eid=NUMBER) into the eid column.');
 	console.log('  3. Leave eid blank for anyone you can\'t confidently confirm — skipping is safer than guessing.');
 	console.log(`  4. Run: node pipeline/finance-eid-import.js ${OUT_PATH}`);
 }

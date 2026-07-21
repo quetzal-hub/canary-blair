@@ -452,8 +452,8 @@ The exact FollowTheMoney total field isn't publicly documented, so verify the dr
 **Matching legislators to a FollowTheMoney entity id first.** FollowTheMoney's API has no name-search token — every candidate filter requires an id you already have, and name filtering is explicitly disabled. So the first time you set this up (or whenever a new member takes office), matching needs one human-verified lookup per person — a wrong match would misattribute real money to the wrong named politician, which is worse than showing nothing:
 
 ```bash
-npm run finance-eid-export                          # writes finance-eids.csv with a search link per member
-# open the CSV, click each link, confirm it's the right WV legislator, paste in their eid
+npm run finance-eid-export                          # writes finance-eids.csv, sorted by last name
+# search followthemoney.org for each legislator, confirm it's the right WV person, paste in their eid
 npm run finance-eid-import finance-eids.csv          # dry run: show what would change
 npm run finance-eid-import finance-eids.csv -- --commit   # write the confirmed eids
 ```
