@@ -18,6 +18,7 @@
 // CONFIG
 // ─────────────────────────────────────────
 import { STATE_CONFIG, nextLowerChamberElectionYear } from './lib/state-config.js';
+import { extractPhone, extractEmail, formatCapitolAddress } from './lib/legiscan-contact.js';
 
 const CONFIG = {
   LEGISCAN_API_BASE: 'https://api.legiscan.com/',
@@ -353,6 +354,9 @@ class SyncEngine {
         votesmart_id:       person.votesmart_id || null,
         opensecrets_id:     person.opensecrets_id || null,
         ballotpedia:        person.ballotpedia || null,
+        email:              extractEmail(person),
+        phone:              extractPhone(person),
+        capitol_address:    formatCapitolAddress(person),
         is_current:         true, // in the current session's roster
         updated_at:         new Date().toISOString(),
       });

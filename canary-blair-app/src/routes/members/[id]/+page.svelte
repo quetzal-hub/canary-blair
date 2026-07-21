@@ -208,7 +208,7 @@
 	{/if}
 
 	<!-- Contact -->
-	{#if member.email || member.phone}
+	{#if member.email || member.phone || member.capitol_address}
 		<section class="section">
 			<h2>Contact {member.full_name}</h2>
 			<p class="contact-intro">You elected them — they answer to you. Reach out about their record.</p>
@@ -223,6 +223,9 @@
 				{/if}
 			</div>
 			<p class="contact-note">The email opens with a short, editable message — make it your own.</p>
+			{#if member.capitol_address}
+				<p class="capitol-address"><span aria-hidden="true">📍</span> {member.capitol_address}</p>
+			{/if}
 		</section>
 	{/if}
 
@@ -439,6 +442,11 @@
 		margin-top: var(--space-sm);
 		font-size: 0.75rem;
 		color: var(--color-text-dim);
+	}
+	.capitol-address {
+		margin-top: var(--space-sm);
+		font-size: 0.875rem;
+		color: var(--color-text-muted);
 	}
 
 	.finance {

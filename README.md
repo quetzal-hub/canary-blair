@@ -79,6 +79,7 @@ Canary Blair pulls live data from the [LegiScan API](https://legiscan.com/) ever
 - Complete sponsored bills list
 - Paginated full vote history, filterable by Yea / Nay / NV / Absent
 - Bills whose AI classification a human reviewed and corrected are marked with a ✏️ note
+- **Contact info** — email, phone, and capitol mailing address, straight from LegiScan's own data (it was always there; nothing previously read it)
 - **Next election year** and **leadership title** (Speaker, Majority Leader, Whip, etc.) — the House's is fully computable (every seat shares one 2-year cycle, so no per-member data is needed); the Senate's staggered 4-year terms would need a data source we haven't found for free yet (see the "photo + leadership sync" section for how the leadership title is populated)
 
 **RSS Feeds (`/feeds`)**
