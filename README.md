@@ -453,10 +453,13 @@ The exact FollowTheMoney total field isn't publicly documented, so verify the dr
 
 ```bash
 npm run finance-eid-export                          # writes finance-eids.csv, sorted by last name
-# search followthemoney.org for each legislator, confirm it's the right WV person, paste in their eid
+npm run finance-eid-lookup                          # fills in confident automatic matches (see below)
+# search followthemoney.org for anyone still blank, confirm it's the right WV person, paste in their eid
 npm run finance-eid-import finance-eids.csv          # dry run: show what would change
 npm run finance-eid-import finance-eids.csv -- --commit   # write the confirmed eids
 ```
+
+`finance-eid-lookup` automates most of the matching: FollowTheMoney's Ask Anything API has no name-search filter, but grouping by career summary (`gro=c-t-eid`) surfaces every WV House/Senate candidate's stable eid in one paginated sweep — no name has to be known in advance. It checks both the current and prior state legislative election years (WV Senate seats are staggered 4-year terms, so a sitting senator may have last run in either cycle) and only fills a row when exactly one candidate matches by name; ambiguous matches (a common name that matches more than one real candidate) and no-matches are left blank for you to resolve by hand, same as the fully-manual path. It only ever fills blank `eid` cells — anything you've already typed in is left untouched. Uses the same free `FTM_API_KEY`.
 
 Leave a row's `eid` blank if you can't confidently confirm the match — skipping is safer than guessing.
 

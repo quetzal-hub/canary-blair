@@ -30,6 +30,7 @@
  *   node pipeline/photos.js --commit   # write photo_url to the database
  */
 import 'dotenv/config';
+import { normTokens, isNameMatch } from './lib/name-match.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -68,70 +69,6 @@ async function patchPhoto(memberId, photoUrl) {
 	if (!res.ok) throw new Error(`Patch member ${memberId}: ${await res.text()}`);
 }
 
-function normTokens(str) {
-	return (str || '')
-		.toLowerCase()
-		.replace(/[.,]/g, '')
-		.split(/\s+/)
-		.filter(Boolean);
-}
-
-// Common nickname/formal-name pairs LegiScan doesn't always capture in its
-// nickname field (e.g. "Zack" for a member stored only as "Zachery"). Only
-// used to widen the FIRST-name check — the last-name match still gates every
-// candidate, so this can't cause a false match on its own.
-const NICKNAME_EQUIV = {
-	zachery: ['zack', 'zach', 'zachary'], zachary: ['zack', 'zach', 'zachery'],
-	michael: ['mike'], mike: ['michael'],
-	william: ['bill', 'will', 'billy'], bill: ['william'],
-	robert: ['bob', 'bobby', 'rob'], bob: ['robert'],
-	richard: ['rick', 'dick', 'richie'], rick: ['richard'],
-	daniel: ['dan', 'danny'], dan: ['daniel'],
-	christopher: ['chris'], chris: ['christopher'],
-	thomas: ['tom', 'tommy'], tom: ['thomas'],
-	joseph: ['joe', 'joey'], joe: ['joseph'],
-	james: ['jim', 'jimmy'], jim: ['james'],
-	kenneth: ['ken'], ken: ['kenneth'],
-	steven: ['steve'], stephen: ['steve'], steve: ['steven', 'stephen'],
-	david: ['dave'], dave: ['david'],
-	andrew: ['andy'], andy: ['andrew'],
-	douglas: ['doug'], doug: ['douglas'],
-	gregory: ['greg'], greg: ['gregory'],
-	lawrence: ['larry'], larry: ['lawrence'],
-	ronald: ['ron'], ron: ['ronald'],
-	donald: ['don'], don: ['donald'],
-	gerald: ['jerry', 'gerry'], jerry: ['gerald'],
-	nicholas: ['nick'], nick: ['nicholas'],
-	matthew: ['matt'], matt: ['matthew'],
-	anthony: ['tony'], tony: ['anthony'],
-	edward: ['ed', 'eddie'], ed: ['edward'],
-	charles: ['charlie', 'chuck'], charlie: ['charles'], chuck: ['charles'],
-	francis: ['frank'], franklin: ['frank'], frank: ['francis', 'franklin'],
-	patrick: ['pat'], pat: ['patrick'],
-	benjamin: ['ben'], ben: ['benjamin']
-};
-
-/**
- * Candidate token-sets for a last name — ALL tokens in any one set must
- * appear in the roster row for that set to count as a match. The whole name
- * is always a candidate (handles multi-word surnames like "Wakim Chapman").
- * Hyphenated surnames also get each half (length >= 3) as its own candidate,
- * since the roster site sometimes drops one half (e.g. a member stored as
- * "Schaaf-Mazzocchi" is listed there as just "Mazzocchi").
- */
-function lastNameCandidateSets(lastName) {
-	const whole = normTokens(lastName);
-	const sets = [whole];
-	for (const tok of whole) {
-		if (tok.includes('-')) {
-			for (const part of tok.split('-')) {
-				if (part.length >= 3) sets.push([part]);
-			}
-		}
-	}
-	return sets;
-}
-
 /**
  * Parses one roster page's raw HTML into { name, districtNum, imgUrl } rows.
  * Both chambers use the same row shape: an <a> wrapping <img src="...jpg">,
@@ -167,18 +104,8 @@ function parseRoster(html, pageUrl) {
  * what to do with zero or multiple.
  */
 function findCandidates(member, rosterRows) {
-	const lastSets = lastNameCandidateSets(member.last_name);
-	const firstCandidates = [member.first_name, member.middle_name, member.nickname].filter(Boolean);
-	if (lastSets[0].length === 0 || firstCandidates.length === 0) return [];
-
-	return rosterRows.filter((row) => {
-		const rosterTokens = normTokens(row.name);
-		const lastOk = lastSets.some((set) => set.every((t) => rosterTokens.includes(t)));
-		const firstOk = firstCandidates.some((fc) =>
-			normTokens(fc).some((t) => rosterTokens.includes(t) || (NICKNAME_EQUIV[t] || []).some((alt) => rosterTokens.includes(alt)))
-		);
-		return lastOk && firstOk;
-	});
+	const firstNameFields = [member.first_name, member.middle_name, member.nickname];
+	return rosterRows.filter((row) => isNameMatch(member.last_name, firstNameFields, normTokens(row.name)));
 }
 
 /** Confirms a photo URL is real before we ever store or show it. */

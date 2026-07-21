@@ -10,6 +10,7 @@
     "finance": "node pipeline/finance.js",
     "photos": "node pipeline/photos.js",
     "finance-eid-export": "node pipeline/finance-eid-export.js",
+    "finance-eid-lookup": "node pipeline/finance-eid-lookup.js",
     "finance-eid-import": "node pipeline/finance-eid-import.js",
     "backup": "node pipeline/backup.js",
     "restore": "node pipeline/restore.js",
