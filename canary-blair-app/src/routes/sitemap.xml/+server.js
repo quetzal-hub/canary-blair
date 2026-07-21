@@ -14,7 +14,7 @@ export async function GET({ url }) {
 		supabase.from('committees').select('id')
 	]);
 
-	const staticPaths = ['', '/bills', '/members', '/find', '/about', '/stats', '/committees', '/compare', '/feeds', '/data'];
+	const staticPaths = ['', '/bills', '/members', '/find', '/about', '/stats', '/leadership', '/committees', '/compare', '/feeds', '/data'];
 
 	const urls = [
 		...staticPaths.map((p) => ({ loc: `${origin}${p}` })),
