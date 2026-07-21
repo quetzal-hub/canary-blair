@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { sanitizeSearch } from '$lib/utils.js';
 
 export async function load({ url }) {
 	const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
 	const chamber = url.searchParams.get('chamber') || 'all';
 	const party = url.searchParams.get('party') || 'all';
-	const search = url.searchParams.get('q') || '';
+	const search = sanitizeSearch(url.searchParams.get('q') || '');
 	const sort = url.searchParams.get('sort') || 'score';
 	const tier = url.searchParams.get('tier') || 'all';
 	// Default to sitting legislators; ?show=former reveals the permanent record

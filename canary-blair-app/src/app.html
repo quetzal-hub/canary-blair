@@ -5,6 +5,13 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#1a1a1a" />
 		<meta name="description" content="Canary Blair — WV legislative accountability. Track every bill, every vote, every legislator." />
+		<script>
+			// Apply the saved theme before first paint to avoid a flash of the wrong theme.
+			try {
+				var t = localStorage.getItem('canary-blair:theme');
+				if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+			} catch (e) {}
+		</script>
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-192.png" />
 		%sveltekit.head%

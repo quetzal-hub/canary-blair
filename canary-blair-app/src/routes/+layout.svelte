@@ -1,6 +1,7 @@
 <script>
 	import '../app.css';
 	import { STATE_CONFIG } from '$stateConfig';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let { children } = $props();
 </script>
@@ -60,6 +61,9 @@
 				<a href="/feeds">Feeds</a>
 				<a href="/data">Open Data</a>
 			</nav>
+			<div class="footer-toggle">
+				<ThemeToggle />
+			</div>
 			<p class="footer-legal">
 				Legislative data from <a href="https://legiscan.com/" target="_blank" rel="noopener noreferrer">LegiScan</a>.
 				Canary Scores are calculated from the public record and AI bill classification, which is
@@ -190,6 +194,11 @@
 		color: var(--color-text-muted);
 		font-size: 0.8125rem;
 		font-weight: 500;
+	}
+	.footer-toggle {
+		margin-top: var(--space-sm);
+		display: flex;
+		justify-content: center;
 	}
 	.footer-legal {
 		margin-top: var(--space-sm);

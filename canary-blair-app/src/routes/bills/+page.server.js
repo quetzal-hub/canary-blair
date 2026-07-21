@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { sanitizeSearch } from '$lib/utils.js';
 
 const PAGE_SIZE = 20;
 
@@ -11,7 +12,7 @@ export async function load({ url }) {
 	const chamber = url.searchParams.get('chamber') || 'all';
 	const alignment = url.searchParams.get('alignment') || 'all';
 	const impact = url.searchParams.get('impact') || 'all';
-	const search = url.searchParams.get('q') || '';
+	const search = sanitizeSearch(url.searchParams.get('q') || '');
 
 	const offset = (page - 1) * PAGE_SIZE;
 

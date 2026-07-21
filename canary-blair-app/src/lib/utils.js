@@ -131,6 +131,17 @@ export function truncate(text, maxLen = 120) {
 }
 
 /**
+ * Sanitize a free-text search term before it's interpolated into a PostgREST
+ * `.or(...)` filter string. Strips the metacharacters that could break out of
+ * the intended `col.ilike.%value%` pattern (commas separate conditions, parens
+ * group them) while keeping everything legitimate in names/districts. Also
+ * length-caps to avoid abuse.
+ */
+export function sanitizeSearch(term) {
+	return (term || '').replace(/[^a-zA-Z0-9 .'-]/g, '').trim().slice(0, 100);
+}
+
+/**
  * Canary Score tier data — derived from the shared per-state config so the
  * frontend, the scoring engine, and the AI prompts all use one set of tier
  * names/taglines. Edit pipeline/lib/state-config.js to change them everywhere.

@@ -17,6 +17,8 @@ jobs:
           node-version: 22
       - name: Install pipeline dependencies
         run: npm ci
+      - name: Audit dependencies (fail on critical)
+        run: npm audit --audit-level=critical
       - name: Run scoring engine tests
         run: npm test
 
@@ -33,6 +35,8 @@ jobs:
           node-version: 22
       - name: Install app dependencies
         run: npm ci
+      - name: Audit dependencies (fail on critical)
+        run: npm audit --audit-level=critical
       - name: Lint
         run: npm run lint
       - name: Build

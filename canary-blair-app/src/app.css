@@ -59,9 +59,10 @@
 	--font-mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
-/* Light mode */
+/* Light-mode variables, shared by system preference (when no explicit choice)
+   and by an explicit data-theme="light" override from the toggle. */
 @media (prefers-color-scheme: light) {
-	:root {
+	:root:not([data-theme]) {
 		--color-bg: #f5f3f0;
 		--color-bg-raised: #ffffff;
 		--color-bg-hover: #eae7e3;
@@ -70,6 +71,25 @@
 		--color-text-dim: #8a8580;
 		--color-border: #d5d0cb;
 	}
+}
+:root[data-theme='light'] {
+	--color-bg: #f5f3f0;
+	--color-bg-raised: #ffffff;
+	--color-bg-hover: #eae7e3;
+	--color-text: #1a1a1a;
+	--color-text-muted: #5a5550;
+	--color-text-dim: #8a8580;
+	--color-border: #d5d0cb;
+}
+/* Re-assert dark values so data-theme="dark" wins even when the system is light. */
+:root[data-theme='dark'] {
+	--color-bg: #1a1a1a;
+	--color-bg-raised: #242424;
+	--color-bg-hover: #2e2e2e;
+	--color-text: #e8e4df;
+	--color-text-muted: #9a9590;
+	--color-text-dim: #6b6560;
+	--color-border: #333;
 }
 
 /* Reset */
