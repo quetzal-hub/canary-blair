@@ -124,6 +124,16 @@ async function run() {
 		return;
 	}
 
+	// PostgREST's bulk insert requires every object in the array to share
+	// identical keys (one column list for the whole statement) — normalize
+	// every row to the same key set, filling absent optional fields with null.
+	const allKeys = [...new Set(OFFICIALS.flatMap((o) => Object.keys(o)))];
+	const rows = OFFICIALS.map((o) => {
+		const row = { is_current: true, updated_at: new Date().toISOString() };
+		for (const k of allKeys) row[k] = o[k] ?? null;
+		return row;
+	});
+
 	const res = await fetch(`${SUPABASE_URL}/rest/v1/officials?on_conflict=slug`, {
 		method: 'POST',
 		headers: {
@@ -132,7 +142,7 @@ async function run() {
 			apikey: SUPABASE_SERVICE_KEY,
 			Prefer: 'resolution=merge-duplicates,return=minimal'
 		},
-		body: JSON.stringify(OFFICIALS.map((o) => ({ ...o, is_current: true, updated_at: new Date().toISOString() })))
+		body: JSON.stringify(rows)
 	});
 	if (!res.ok) throw new Error(`Upsert officials: ${await res.text()}`);
 	console.log(`\n✅ Seeded ${OFFICIALS.length} officials.`);
