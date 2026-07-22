@@ -109,27 +109,38 @@ async function supabasePatch(table, id, data) {
 // CLAUDE API
 // ─────────────────────────────────────────
 
-// Concurrent workers raise the odds of hitting Anthropic's rate limit — retry
-// 429s with backoff (honoring retry-after when present) instead of counting
-// a rate-limited bill as a hard failure.
-async function callClaude(prompt, retries = 4) {
+// Concurrent workers raise the odds of hitting Anthropic's rate limit and of
+// transient connection drops. Retry both 429s AND thrown network errors
+// ("fetch failed", ECONNRESET, socket hang-ups) with backoff, so a blip
+// doesn't count a bill as a hard failure. Also retry 5xx overloads.
+async function callClaude(prompt, retries = 5) {
 	for (let attempt = 0; ; attempt++) {
-		const res = await fetch('https://api.anthropic.com/v1/messages', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': ANTHROPIC_API_KEY,
-				'anthropic-version': '2023-06-01'
-			},
-			body: JSON.stringify({
-				model: CLAUDE_MODEL,
-				max_tokens: MAX_TOKENS,
-				thinking: THINKING_ADAPTIVE, // reason before classifying (extractText skips thinking blocks)
-				messages: [{ role: 'user', content: prompt }]
-			})
-		});
+		let res;
+		try {
+			res = await fetch('https://api.anthropic.com/v1/messages', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': ANTHROPIC_API_KEY,
+					'anthropic-version': '2023-06-01'
+				},
+				body: JSON.stringify({
+					model: CLAUDE_MODEL,
+					max_tokens: MAX_TOKENS,
+					thinking: THINKING_ADAPTIVE, // reason before classifying (extractText skips thinking blocks)
+					messages: [{ role: 'user', content: prompt }]
+				})
+			});
+		} catch (err) {
+			// Network-level failure (no HTTP response) — retry with backoff.
+			if (attempt < retries) {
+				await new Promise((r) => setTimeout(r, 2 ** attempt * 2 * 1000));
+				continue;
+			}
+			throw new Error(`Claude request failed after ${retries} retries: ${err.message}`);
+		}
 
-		if (res.status === 429 && attempt < retries) {
+		if ((res.status === 429 || res.status >= 500) && attempt < retries) {
 			const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt * 2;
 			await new Promise((r) => setTimeout(r, retryAfter * 1000));
 			continue;
