@@ -6,10 +6,13 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreGovernor, governorActionForBill } from '../lib/governor-scoring.js';
+import { scoreGovernor, governorActionForBill, EO_ACTION_WEIGHT, EXEC_REQUEST_SIGN_MULTIPLIER } from '../lib/governor-scoring.js';
 
 function bill(id, alignment, tier = 4, extra = {}) {
 	return { id, bill_number: `HB${id}`, title: `Bill ${id}`, ai_alignment: alignment, ai_impact_tier: tier, ai_tags: ['x'], ...extra };
+}
+function eo(number, alignment, tier = 4, extra = {}) {
+	return { eo_number: number, title: `EO ${number}`, ai_alignment: alignment, ai_impact_tier: tier, ai_tags: ['x'], ...extra };
 }
 
 test('governorActionForBill classifies the real action string variants', () => {
@@ -117,6 +120,57 @@ test('items are itemized with signed points and sorted by magnitude', () => {
 	assert.equal(items[0].bill_number, 'HB1'); // |+12| > |-1|
 	assert.equal(items[0].points, 12);
 	assert.equal(items[1].points, -1);
+});
+
+test('executive orders score as the governor\'s own initiative (EO_ACTION_WEIGHT)', () => {
+	// One routine for_capital EO (tier4, w1) × EO_ACTION_WEIGHT, no bill actions.
+	// raw = -1*EO_WEIGHT, max = 1*EO_WEIGHT -> score = round((0)/(2)*100) = 0
+	const executiveOrders = [eo('3-25', 'for_capital', 4)];
+	const { score, totals } = scoreGovernor({ bills: [], actionsByBill: new Map(), executiveOrders });
+	assert.equal(score, 0);
+	assert.equal(totals.eo_total, 1);
+	assert.equal(totals.eo_capital, 1);
+
+	// A for_people EO alone → 100.
+	assert.equal(scoreGovernor({ bills: [], actionsByBill: new Map(), executiveOrders: [eo('1-25', 'for_people', 4)] }).score, 100);
+});
+
+test('an executive order outweighs a bill signing of the same tier (own initiative)', () => {
+	// Sign a routine for_people bill (+1) but issue a routine for_capital EO
+	// (-1 × EO_ACTION_WEIGHT=3 = -3): raw = 1 - 3 = -2, max = 1 + 3 = 4
+	// score = round((-2+4)/8*100) = round(25) = 25 — the EO dominates.
+	const bills = [bill(1, 'for_people', 4)];
+	const actionsByBill = new Map([[1, ['Approved by Governor 3/25/2026']]]);
+	const executiveOrders = [eo('3-25', 'for_capital', 4)];
+	const { score } = scoreGovernor({ bills, actionsByBill, executiveOrders });
+	assert.equal(score, 25);
+	assert.equal(EO_ACTION_WEIGHT, 3);
+});
+
+test('signing a bill he himself requested carries extra weight', () => {
+	// Sign one routine for_capital bill (w1). As a normal signing: -1.
+	// As his own request: -1 × 1.5 = -1.5. Contrast the two scores.
+	const bills = [bill(1, 'for_capital', 4)];
+	const actionsByBill = new Map([[1, ['Approved by Governor 3/25/2026']]]);
+	const normal = scoreGovernor({ bills, actionsByBill });
+	const ownRequest = scoreGovernor({ bills, actionsByBill, execRequestBillIds: new Set([1]) });
+	// Both are 0 (only a negative signing → raw=-w, max=w → score 0), so instead
+	// verify the multiplier flows into the totals and the weighted points.
+	assert.equal(ownRequest.totals.exec_request_signed, 1);
+	assert.equal(normal.totals.exec_request_signed, 0);
+	// The exec-request item's points are 1.5× the normal item's.
+	assert.equal(ownRequest.items[0].points, -1.5);
+	assert.equal(normal.items[0].points, -1);
+	assert.equal(EXEC_REQUEST_SIGN_MULTIPLIER, 1.5);
+});
+
+test('a neutral executive order does not move the score', () => {
+	const bills = [bill(1, 'for_people', 4)];
+	const actionsByBill = new Map([[1, ['Approved by Governor 3/25/2026']]]);
+	const { score, totals } = scoreGovernor({ bills, actionsByBill, executiveOrders: [eo('9-25', 'neutral', 3)] });
+	assert.equal(score, 100); // only the for_people signing counts
+	assert.equal(totals.eo_total, 1);
+	assert.equal(totals.eo_scored, 0);
 });
 
 test('no scoreable actions yields null score, not 0', () => {

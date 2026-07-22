@@ -13,6 +13,8 @@
     "committee-scrape": "node pipeline/committee-scrape.js",
     "officials-seed": "node pipeline/officials-seed.js",
     "governor-score": "node pipeline/governor-score.js",
+    "eo-classify": "node pipeline/eo-classify.js",
+    "executive-request-scan": "node pipeline/executive-request-scan.js",
     "finance-eid-export": "node pipeline/finance-eid-export.js",
     "finance-eid-lookup": "node pipeline/finance-eid-lookup.js",
     "finance-eid-import": "node pipeline/finance-eid-import.js",

@@ -22,7 +22,16 @@
  * Pure function — no I/O — so it's unit-testable and can't drift between the
  * CLI runner and anything else that ever computes it.
  */
-import { buildBillMap, getTier } from './scoring.js';
+import { buildBillMap, getTier, getBillWeight, effectiveAlignment, effectiveImpactTier } from './scoring.js';
+
+// An executive order is the Governor's UNILATERAL act — no legislature to share
+// credit or blame — so it counts as his own initiative, weighted like a primary
+// sponsorship (3×) rather than a reactive signing.
+export const EO_ACTION_WEIGHT = 3;
+
+// Signing a bill he himself requested ("[By Request of the Executive]") is the
+// strongest ownership — he both proposed it and enacted it — so it counts extra.
+export const EXEC_REQUEST_SIGN_MULTIPLIER = 1.5;
 
 /** Classify one bill's governor action from its (deduped) action texts. */
 export function governorActionForBill(actionTexts) {
@@ -44,12 +53,14 @@ export function governorActionForBill(actionTexts) {
 
 /**
  * @param {object} input
- * @param {Array}  input.bills          rows with id, bill_number, title, ai_tags,
- *                                      ai_alignment[_override], ai_impact_tier[_override], ai_confidence
- * @param {Map}    input.actionsByBill  bill_id → array of action_text strings
+ * @param {Array}  input.bills               rows with id, bill_number, title, ai_tags,
+ *                                           ai_alignment[_override], ai_impact_tier[_override], ai_confidence
+ * @param {Map}    input.actionsByBill       bill_id → array of action_text strings
+ * @param {Array}  [input.executiveOrders]   rows with eo_number, title, ai_alignment[_override], ai_impact_tier[_override], ai_confidence
+ * @param {Set}    [input.execRequestBillIds] bill_ids the Governor requested ("[By Request of the Executive]")
  * @returns {{ score, tier, items, totals }}
  */
-export function scoreGovernor({ bills, actionsByBill }) {
+export function scoreGovernor({ bills, actionsByBill, executiveOrders = [], execRequestBillIds = new Set() }) {
 	const billMap = buildBillMap(bills); // effective-alignment + confidence-weighted, neutral excluded
 	const billById = new Map(bills.map((b) => [b.id, b]));
 
@@ -64,7 +75,10 @@ export function scoreGovernor({ bills, actionsByBill }) {
 		signed_people: 0, signed_capital: 0,
 		vetoed_people: 0, vetoed_capital: 0,
 		no_signature_people: 0, no_signature_capital: 0,
-		actions_total: 0, actions_scored: 0
+		actions_total: 0, actions_scored: 0,
+		// Executive orders (his unilateral acts) and executive-request signings.
+		eo_total: executiveOrders.length, eo_scored: 0, eo_people: 0, eo_capital: 0,
+		exec_request_signed: 0
 	};
 
 	for (const [billId, actionTexts] of actionsByBill) {
@@ -77,7 +91,10 @@ export function scoreGovernor({ bills, actionsByBill }) {
 		if (!bill) continue; // neutral or unclassified — doesn't move the score
 		totals.actions_scored++;
 
-		const w = bill.weight;
+		// Signing a bill he himself requested carries extra ownership weight.
+		const isExecRequest = action === 'signed' && execRequestBillIds.has(billId);
+		const w = bill.weight * (isExecRequest ? EXEC_REQUEST_SIGN_MULTIPLIER : 1);
+		if (isExecRequest) totals.exec_request_signed++;
 		const sign = bill.forPeople ? 1 : -1; // direction "signing" moves the score
 		let points;
 		if (action === 'signed') points = sign * w;
@@ -88,10 +105,12 @@ export function scoreGovernor({ bills, actionsByBill }) {
 
 		const src = billById.get(billId);
 		items.push({
+			type: 'bill',
 			bill_id: billId,
 			bill_number: src?.bill_number,
 			title: src?.title,
 			action,
+			executive_request: isExecRequest,
 			alignment: bill.forPeople ? 'for_people' : 'for_capital',
 			impact_tier: src?.ai_impact_tier_override ?? src?.ai_impact_tier ?? null,
 			points: Math.round(points * 100) / 100
@@ -99,6 +118,30 @@ export function scoreGovernor({ bills, actionsByBill }) {
 
 		const key = `${action === 'signed' ? 'signed' : action === 'vetoed' ? 'vetoed' : 'no_signature'}_${bill.forPeople ? 'people' : 'capital'}`;
 		totals[key]++;
+	}
+
+	// Executive orders — the Governor's unilateral acts. Issuing a for_people EO
+	// helps his score, a for_capital EO hurts it, each weighted as his own
+	// initiative (EO_ACTION_WEIGHT). Neutral EOs don't move the number.
+	for (const eo of executiveOrders) {
+		const alignment = effectiveAlignment(eo);
+		if (!alignment || alignment === 'neutral') continue;
+		const forPeople = alignment === 'for_people';
+		const w = getBillWeight(eo) * EO_ACTION_WEIGHT;
+		const points = (forPeople ? 1 : -1) * w;
+		raw += points;
+		max += w;
+		totals.eo_scored++;
+		totals[forPeople ? 'eo_people' : 'eo_capital']++;
+		items.push({
+			type: 'executive_order',
+			eo_number: eo.eo_number,
+			title: eo.title,
+			action: 'executive_order',
+			alignment,
+			impact_tier: effectiveImpactTier(eo),
+			points: Math.round(points * 100) / 100
+		});
 	}
 
 	let score = null;

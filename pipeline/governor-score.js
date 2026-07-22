@@ -50,7 +50,17 @@ async function run() {
 	);
 	console.log(`📊 ${bills.length} classified bills loaded`);
 
-	const { score, tier, items, totals } = scoreGovernor({ bills, actionsByBill });
+	// Executive orders (his unilateral acts) + bills he requested. Both tables
+	// may be empty on older deployments — the engine handles that gracefully.
+	const executiveOrders = await fetchAllRows(
+		db,
+		'executive_orders?select=eo_number,title,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override,ai_confidence,ai_tags'
+	).catch(() => []);
+	const execReqRows = await fetchAllRows(db, 'bills?select=id&executive_request=eq.true').catch(() => []);
+	const execRequestBillIds = new Set(execReqRows.map((b) => b.id));
+	console.log(`🖋️  ${executiveOrders.length} executive orders, ${execRequestBillIds.size} executive-request bills`);
+
+	const { score, tier, items, totals } = scoreGovernor({ bills, actionsByBill, executiveOrders, execRequestBillIds });
 
 	if (score == null) {
 		console.log('\nNo scoreable governor actions yet — nothing written.');
@@ -58,10 +68,11 @@ async function run() {
 	}
 
 	console.log(`\n🐦 Governor Canary Score: ${score}/100 — ${TIER_NAMES[tier] || tier}`);
-	console.log(`   Signed: ${totals.signed_people} people / ${totals.signed_capital} capital`);
+	console.log(`   Signed: ${totals.signed_people} people / ${totals.signed_capital} capital (${totals.exec_request_signed} his own requests)`);
 	console.log(`   Vetoed: ${totals.vetoed_people} people / ${totals.vetoed_capital} capital`);
 	console.log(`   Unsigned into law: ${totals.no_signature_people} people / ${totals.no_signature_capital} capital`);
-	console.log(`   (${totals.actions_scored} of ${totals.actions_total} actions were on aligned bills)`);
+	console.log(`   Executive orders: ${totals.eo_people} people / ${totals.eo_capital} capital (of ${totals.eo_total} issued)`);
+	console.log(`   (${totals.actions_scored} of ${totals.actions_total} bill actions were on aligned bills)`);
 
 	const res = await fetch(`${SUPABASE_URL}/rest/v1/officials?slug=eq.governor`, {
 		method: 'PATCH',

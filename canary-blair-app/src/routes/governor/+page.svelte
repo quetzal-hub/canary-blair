@@ -9,8 +9,10 @@
 	const ACTION_LABELS = {
 		signed: 'Signed',
 		vetoed: 'Vetoed',
-		no_signature: 'Became law without signature'
+		no_signature: 'Became law without signature',
+		executive_order: 'Exec. Order'
 	};
+	const eoIssued = $derived((t.eo_people || 0) + (t.eo_capital || 0));
 </script>
 
 <svelte:head>
@@ -58,19 +60,23 @@
 			This score is a mathematical product of the Governor's own actions on bills — signing, vetoing, or
 			letting them become law unsigned — using the same AI bill classifications as legislator scores.
 			It is not an editorial judgment, and AI classification is imperfect; the full action list below
-			shows every scored decision. Letting a bill become law without a signature counts at half strength:
-			acquiescence, not endorsement.
+			shows every scored decision. Letting a bill become law without a signature counts at half strength
+			(acquiescence, not endorsement); executive orders and bills he himself requested count for MORE,
+			because they're his own initiative rather than a reaction.
 		</p>
 
 		<section class="action-stats">
-			<div class="stat-card"><span class="stat-number">{t.signed_total || 0}</span><span class="stat-label">Bills signed</span></div>
+			<div class="stat-card"><span class="stat-number">{t.signed_total || 0}</span><span class="stat-label">Bills signed{#if t.exec_request_signed}<br><span class="stat-sub">{t.exec_request_signed} his own requests</span>{/if}</span></div>
 			<div class="stat-card"><span class="stat-number">{t.vetoed_total || 0}</span><span class="stat-label">Bills vetoed</span></div>
 			<div class="stat-card"><span class="stat-number">{t.no_signature_total || 0}</span><span class="stat-label">Became law unsigned</span></div>
+			{#if t.eo_total}
+				<div class="stat-card"><span class="stat-number">{t.eo_total}</span><span class="stat-label">Executive orders<br><span class="stat-sub">{eoIssued} with a clear lean</span></span></div>
+			{/if}
 		</section>
 		<p class="scored-note">
 			Of {t.actions_total || 0} total bill actions, {t.actions_scored || 0} were on bills our AI classified as
-			clearly for the people or for capital — only those move the score. The rest were procedural or
-			administrative bills with no clear lean.
+			clearly for the people or for capital — only those move the score, plus the {eoIssued} executive
+			order{eoIssued === 1 ? '' : 's'} with a clear lean. The rest were procedural or neutral.
 		</p>
 
 		{#if data.breakdown?.items?.length}
@@ -79,15 +85,27 @@
 				<p class="breakdown-sub">Every scored action, biggest impact first. Positive points helped the score; negative hurt it.</p>
 				<div class="action-list">
 					{#each data.breakdown.items as item}
-						<a class="action-row" href="/bills/{item.bill_id}">
-							<span class="action-what {item.action}">{ACTION_LABELS[item.action] || item.action}</span>
-							<div class="action-bill">
-								<span class="action-number">{item.bill_number}</span>
-								<span class="action-title">{item.title}</span>
+						{#if item.type === 'executive_order'}
+							<div class="action-row eo-row">
+								<span class="action-what executive_order">{ACTION_LABELS.executive_order}</span>
+								<div class="action-bill">
+									<span class="action-number">EO {item.eo_number}</span>
+									<span class="action-title">{item.title}</span>
+								</div>
+								<span class="action-align {item.alignment === 'for_people' ? 'people' : 'capital'}">{item.alignment === 'for_people' ? 'For People' : 'For Capital'}</span>
+								<span class="action-points {item.points >= 0 ? 'pos' : 'neg'}">{item.points >= 0 ? '+' : ''}{item.points}</span>
 							</div>
-							<span class="action-align {item.alignment === 'for_people' ? 'people' : 'capital'}">{item.alignment === 'for_people' ? 'For People' : 'For Capital'}</span>
-							<span class="action-points {item.points >= 0 ? 'pos' : 'neg'}">{item.points >= 0 ? '+' : ''}{item.points}</span>
-						</a>
+						{:else}
+							<a class="action-row" href="/bills/{item.bill_id}">
+								<span class="action-what {item.action}">{ACTION_LABELS[item.action] || item.action}</span>
+								<div class="action-bill">
+									<span class="action-number">{item.bill_number}{#if item.executive_request}<span class="own-request" title="A bill the Governor himself requested">★ his own request</span>{/if}</span>
+									<span class="action-title">{item.title}</span>
+								</div>
+								<span class="action-align {item.alignment === 'for_people' ? 'people' : 'capital'}">{item.alignment === 'for_people' ? 'For People' : 'For Capital'}</span>
+								<span class="action-points {item.points >= 0 ? 'pos' : 'neg'}">{item.points >= 0 ? '+' : ''}{item.points}</span>
+							</a>
+						{/if}
 					{/each}
 				</div>
 				{#if data.breakdown.itemsTruncated > 0}
@@ -180,6 +198,10 @@
 	.action-what.vetoed { color: var(--color-nay, #a03c3c); }
 	.action-what.signed { color: var(--color-yea, #4a7c3f); }
 	.action-what.no_signature { color: var(--color-text-muted); font-size: 0.75rem; }
+	.action-what.executive_order { color: var(--color-accent); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.02em; }
+	.eo-row { border-left: 3px solid var(--color-accent); }
+	.own-request { margin-left: var(--space-xs); font-size: 0.6875rem; font-weight: 700; color: var(--color-accent); white-space: nowrap; }
+	.stat-sub { font-size: 0.6875rem; color: var(--color-text-dim); font-weight: 400; }
 	.action-bill { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 	.action-number { font-weight: 600; }
 	.action-title { color: var(--color-text-muted); font-size: 0.8125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
