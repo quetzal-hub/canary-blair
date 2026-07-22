@@ -49,7 +49,11 @@ const RESTORE_ORDER = [
 	{ table: 'member_score_history', keepId: false, conflict: 'member_id,session_id,snapshot_date' },
 	{ table: 'bill_actions', keepId: false, conflict: null }, // no natural key — plain insert (fresh DB)
 	{ table: 'classification_reports', keepId: false, conflict: null },
-	{ table: 'sync_log', keepId: false, conflict: null }
+	{ table: 'sync_log', keepId: false, conflict: null },
+	// Standalone (SERIAL id nothing references) — dedupe on their natural keys.
+	{ table: 'officials', keepId: false, conflict: 'slug' },
+	{ table: 'committee_memberships', keepId: false, conflict: 'committee_key,member_display' }, // member_id → members (restored above)
+	{ table: 'executive_orders', keepId: false, conflict: 'eo_number' }
 ];
 
 const BATCH = 200;

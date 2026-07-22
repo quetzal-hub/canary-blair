@@ -45,7 +45,10 @@ const TABLES = [
 	'session_digests',
 	'member_score_history',
 	'classification_reports',
-	'sync_log'
+	'sync_log',
+	'officials',
+	'committee_memberships',
+	'executive_orders'
 ];
 
 const dirArg = process.argv.find((a) => a.startsWith('--dir='));
