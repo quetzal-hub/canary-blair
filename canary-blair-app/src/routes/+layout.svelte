@@ -56,6 +56,8 @@
 			</p>
 			<nav class="footer-links" aria-label="More">
 				<a href="/stats">Stats</a>
+				<a href="/governor">Governor</a>
+				<a href="/officials">Officials</a>
 				<a href="/leadership">Leadership</a>
 				<a href="/committees">Committees</a>
 				<a href="/compare">Compare</a>

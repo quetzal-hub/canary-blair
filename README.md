@@ -483,6 +483,20 @@ npm run openstates            # dry run: show what would change
 npm run openstates -- --commit   # write to the database
 ```
 
+### Governor & statewide officials (optional)
+
+The Governor gets a Canary Score too — computed from actions already sitting in our synced data: every "Approved by Governor", "Vetoed by Governor", and "Became law without Governor's signature" event in `bill_actions`, scored against the same AI bill classifications (same effective-override and confidence-discount rules) as legislator scores. Letting a bill become law unsigned counts at half strength — acquiescence, not endorsement. Same 0–100 scale, same tiers, same "How we got this number" audit trail on the `/governor` page. Executive-request bills and executive orders are future additions, not yet scored.
+
+The `/officials` page lists all statewide electeds: the executive branch (Board of Public Works) and the elected Supreme Court of Appeals justices. Justices are displayed with campaign finance (where populated) but **never scored** — scoring judicial decisions is out of scope by design. All officeholders were verified against their office's own official state website, and each seeded record's source is commented in `pipeline/officials-seed.js`.
+
+```bash
+npm run officials-seed            # dry run: show who would be seeded
+npm run officials-seed -- --commit   # write the verified officeholders
+npm run governor-score            # compute + write the Governor's score (like npm run score)
+```
+
+Requires `schema/018_officials.sql`.
+
 ### Classification accuracy eval
 
 Measures how often the AI's bill classification agrees with your own human judgment — the honest way to know whether a prompt change actually helped. Copy the template, hand-label 30–50 real bills, and run it:

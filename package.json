@@ -10,6 +10,8 @@
     "finance": "node pipeline/finance.js",
     "photos": "node pipeline/photos.js",
     "openstates": "node pipeline/openstates-sync.js",
+    "officials-seed": "node pipeline/officials-seed.js",
+    "governor-score": "node pipeline/governor-score.js",
     "finance-eid-export": "node pipeline/finance-eid-export.js",
     "finance-eid-lookup": "node pipeline/finance-eid-lookup.js",
     "finance-eid-import": "node pipeline/finance-eid-import.js",
