@@ -19,6 +19,7 @@ import {
 	dedupeVotes,
 	contestednessFactor,
 	billAdvanced,
+	isProceduralMotion,
 	CONFIDENCE_WEIGHTS,
 	CORPORATE_FRIEND_MIN_VOTES,
 	UNANIMOUS_VOTE_WEIGHT,
@@ -343,6 +344,37 @@ test('defecting on a contested vote hurts more than defecting on a consensus vot
 	const [c] = run({ bills, votes: votesC, members: [MEMBER], rollCalls });
 	const [d] = run({ bills, votes: votesD, members: [{ id: 2, full_name: 'D', party: 'D', chamber: 'H' }], rollCalls });
 	assert.ok(d.canary_score < c.canary_score - 5, `contested defection (${d.canary_score}) should cost clearly more than consensus defection (${c.canary_score})`);
+});
+
+// ─── procedural motions ────────────────────────────────────
+
+test('isProceduralMotion flags tangled motions but not real passages', () => {
+	assert.equal(isProceduralMotion('Motion to table motion to discharge from committee adopted'), true);
+	assert.equal(isProceduralMotion('Motion to take from the table rejected'), true);
+	assert.equal(isProceduralMotion('Motion to table previous motion adopted'), true);
+	// "reconsidered AND passed" is a real passage, not a procedural motion.
+	assert.equal(isProceduralMotion('Senate reconsidered and passed bill (Roll No. 552)'), false);
+	assert.equal(isProceduralMotion('Passed House (Roll No. 42)'), false);
+});
+
+test('a procedural motion is dropped so the actual passage vote is scored', () => {
+	// One for_people bill. Member voted Yea on passage (day 1), then there is a
+	// later procedural "motion to table" roll call on the same bill (day 2). The
+	// procedural one must NOT become the scored vote — the Yea-on-passage should.
+	const bills = makeBills(20, { alignment: 'for_people' });
+	const rollCalls = [
+		{ id: 10, date: '2026-01-05', yea: 60, nay: 40, description: 'Passed House (Roll No. 10)' },
+		{ id: 11, date: '2026-01-20', yea: 55, nay: 45, description: 'Motion to table motion to discharge from committee adopted' }
+	];
+	// bill 1 has both roll calls; member voted Yea on passage, Nay on the procedural motion.
+	const votes = [
+		{ member_id: 1, bill_id: 1, vote_value: 1, roll_call_id: 10 },
+		{ member_id: 1, bill_id: 1, vote_value: 2, roll_call_id: 11 },
+		...votesFor(1, bills.slice(1), 1) // 19 other bills, plain Yea
+	];
+	const [r] = run({ bills, votes, members: [MEMBER], rollCalls });
+	assert.equal(r.canary_votes_scored, 20); // procedural vote dropped, passage kept → still 20 bills
+	assert.equal(r.canary_score, 100); // all Yea on for_people passages
 });
 
 // ─── sponsorship cheap-virtue discount ─────────────────────

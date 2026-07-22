@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { error } from '@sveltejs/kit';
-import { effectiveAlignment, effectiveImpactTier, billWeight, votePoints, SPONSOR_WEIGHTS, contestednessFactor, billAdvanced, CHEAP_SPONSOR_WEIGHT } from '$lib/utils.js';
+import { effectiveAlignment, effectiveImpactTier, billWeight, votePoints, SPONSOR_WEIGHTS, contestednessFactor, billAdvanced, CHEAP_SPONSOR_WEIGHT, isProceduralMotion } from '$lib/utils.js';
 
 const VOTES_PER_PAGE = 30;
 
@@ -38,7 +38,7 @@ export async function load({ params, url }) {
 		// it to scored bills only.
 		supabase
 			.from('votes')
-			.select(`vote_value, roll_call_id, roll_calls(date, yea, nay), bills!inner(${BILL_COLS})`)
+			.select(`vote_value, roll_call_id, roll_calls(date, yea, nay, description), bills!inner(${BILL_COLS})`)
 			.eq('member_id', id)
 			.in('bills.ai_alignment', ['for_people', 'for_capital']),
 		// Permanent score history (schema/007). Table may not exist yet on older
@@ -60,6 +60,7 @@ export async function load({ params, url }) {
 	const byBill = new Map();
 	for (const v of scoredVotesRes.data || []) {
 		if (!v.bills) continue;
+		if (v.roll_calls && isProceduralMotion(v.roll_calls.description)) continue; // procedural motions aren't a position on the bill
 		const key = v.bills.id;
 		const prev = byBill.get(key);
 		if (!prev) { byBill.set(key, v); continue; }

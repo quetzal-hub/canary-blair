@@ -438,8 +438,9 @@ ${textSection}`.trim();
 		const votes = await fetchAllRows(this.db, 'votes?select=member_id,vote_value,bill_id,roll_call_id');
 		const members = await fetchAllRows(this.db, 'members?select=id,full_name,party,chamber');
 		const sponsorships = await fetchAllRows(this.db, 'bill_sponsors?select=member_id,bill_id,sponsor_type');
-		// Roll-call dates for dedupe; yea/nay for contested-vote weighting.
-		const rollCalls = await fetchAllRows(this.db, 'roll_calls?select=id,date,yea,nay');
+		// Roll-call dates for dedupe; yea/nay for contested-vote weighting;
+		// description to drop procedural motions from scoring.
+		const rollCalls = await fetchAllRows(this.db, 'roll_calls?select=id,date,yea,nay,description');
 
 		console.log(`📊 ${bills.length} tagged bills, ${votes.length} votes, ${members.length} members`);
 

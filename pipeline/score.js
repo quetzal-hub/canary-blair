@@ -34,8 +34,9 @@ async function run() {
 	const votes = await fetchAllRows(db, 'votes?select=member_id,vote_value,bill_id,roll_call_id');
 	console.log(`🗳️  Loaded ${votes.length.toLocaleString()} votes`);
 
-	// Roll-call dates drive final-vote dedupe; yea/nay drive contested-vote weighting.
-	const rollCalls = await fetchAllRows(db, 'roll_calls?select=id,date,yea,nay');
+	// Roll-call dates drive final-vote dedupe; yea/nay drive contested-vote weighting;
+	// description lets the engine drop tangled procedural motions from scoring.
+	const rollCalls = await fetchAllRows(db, 'roll_calls?select=id,date,yea,nay,description');
 
 	const members = await fetchAllRows(db, 'members?select=id,full_name,party,chamber');
 	const sponsorships = await fetchAllRows(db, 'bill_sponsors?select=member_id,bill_id,sponsor_type');

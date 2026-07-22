@@ -74,6 +74,19 @@ export function billAdvanced(status) {
 	return status == null ? true : ADVANCED_STATUSES.has(status);
 }
 
+// Some roll calls are tangled procedural motions (motion to table the motion to
+// discharge, take-from-the-table, previous-question, bare reconsider) whose
+// yea/nay direction relative to the bill's merits is genuinely ambiguous. They
+// must NOT become a member's scored vote on the bill — a "yea to table a
+// discharge motion" is not a clean position on the policy. We exclude them so
+// the scored vote falls back to the actual passage vote. A "reconsidered AND
+// passed" description is a real passage, not a procedural motion — hence the guard.
+export function isProceduralMotion(description) {
+	const d = description || '';
+	if (/passed\s+(bill|the|house|senate)/i.test(d)) return false;
+	return /motion to table|motion to discharge|take from the table|previous motion|postpone indefinitely|motion to reconsider/i.test(d);
+}
+
 // AI classification confidence scales a bill's weight: an uncertain call moves
 // scores less until a human confirms it. A human alignment override restores
 // full weight (the human judgment supersedes the AI's uncertainty).
@@ -229,8 +242,12 @@ export function buildBillMap(bills) {
 export function scoreMembers({ bills, votes: rawVotes, members, sponsorships, priorScores, rollCalls = [] }) {
 	const billMap = buildBillMap(bills);
 
-	// One vote per member per bill: their final-passage position.
-	const votes = dedupeVotes(rawVotes, rollCalls);
+	// Roll calls that are tangled procedural motions — excluded so they can't
+	// become a member's scored vote on the bill (the actual passage vote wins).
+	const proceduralIds = new Set(rollCalls.filter((rc) => isProceduralMotion(rc.description)).map((rc) => rc.id));
+
+	// One vote per member per bill: their final-passage position (procedural motions dropped).
+	const votes = dedupeVotes(rawVotes.filter((v) => !proceduralIds.has(v.roll_call_id)), rollCalls);
 
 	const memberSponsorships = new Map();
 	for (const s of sponsorships) {
@@ -417,8 +434,10 @@ export function explainMemberScore({ memberId, bills, votes: rawVotes, sponsorsh
 	const billMap = buildBillMap(bills);
 	const billById = new Map(bills.map((b) => [b.id, b]));
 
-	// Same final-vote dedupe as the scorer, so the audit trail matches the score.
-	const votes = dedupeVotes(rawVotes.filter((v) => v.member_id === memberId), rollCalls);
+	// Same final-vote dedupe as the scorer (procedural motions excluded), so the
+	// audit trail matches the score.
+	const proceduralIds = new Set(rollCalls.filter((rc) => isProceduralMotion(rc.description)).map((rc) => rc.id));
+	const votes = dedupeVotes(rawVotes.filter((v) => v.member_id === memberId && !proceduralIds.has(v.roll_call_id)), rollCalls);
 	const rcInfo = new Map();
 	for (const rc of rollCalls) rcInfo.set(rc.id, { yea: rc.yea, nay: rc.nay });
 

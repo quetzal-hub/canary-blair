@@ -243,6 +243,13 @@ export function billAdvanced(status) {
 	return status == null ? true : ADVANCED_STATUSES.has(status);
 }
 
+// Tangled procedural motions whose direction is ambiguous — excluded from scoring.
+export function isProceduralMotion(description) {
+	const d = description || '';
+	if (/passed\s+(bill|the|house|senate)/i.test(d)) return false;
+	return /motion to table|motion to discharge|take from the table|previous motion|postpone indefinitely|motion to reconsider/i.test(d);
+}
+
 /** Effective (post-human-override) bill values. */
 export function effectiveAlignment(bill) {
 	return bill?.ai_alignment_override ?? bill?.ai_alignment ?? null;
