@@ -162,6 +162,39 @@
 		<ScoreBreakdown breakdown={data.breakdown} memberName={member.full_name} />
 	{/if}
 
+	<!-- Gatekeeper: what died in the committees they chair -->
+	{#if data.gatekeeper}
+		<section class="section gatekeeper">
+			<h2>🚪 Gatekeeper</h2>
+			<p class="gatekeeper-intro">
+				{member.full_name} chairs {data.gatekeeper.committees.length === 1 ? 'the' : ''}
+				<strong>{data.gatekeeper.committees.join(', ')}</strong> committee{data.gatekeeper.committees.length > 1 ? 's' : ''}.
+				A chair controls what their committee votes on — so what dies there without a vote is their call,
+				and it never shows up in the score above.
+			</p>
+			{#if data.gatekeeper.buried.length > 0}
+				<div class="gatekeeper-stat">
+					<span class="gk-number">{data.gatekeeper.buried.length}</span>
+					<span class="gk-label">high-impact, people-first bill{data.gatekeeper.buried.length > 1 ? 's' : ''} died in {data.gatekeeper.committees.length > 1 ? 'their committees' : 'their committee'} without a recorded vote</span>
+				</div>
+				<ul class="gk-bills">
+					{#each data.gatekeeper.buried as b (b.id)}
+						<li>
+							<a href="/bills/{b.id}">
+								<span class="gk-tier tier-{b.ai_impact_tier}">{b.ai_impact_tier === 1 ? 'LANDMARK' : 'HIGH IMPACT'}</span>
+								<span class="gk-num">{b.bill_number}</span>
+								<span class="gk-title">{b.title}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+				<p class="gk-foot">See <a href="/graveyard">the full Graveyard</a> and <a href="/theater">how this works</a>.</p>
+			{:else}
+				<p class="gatekeeper-clean">No high-impact people-first bills died in {data.gatekeeper.committees.length > 1 ? 'these committees' : 'this committee'} without a vote this session.</p>
+			{/if}
+		</section>
+	{/if}
+
 	<!-- Who funds them -->
 	{#if member.finance_total_raised != null}
 		<section class="section">
@@ -476,6 +509,26 @@
 		font-size: 0.875rem;
 		color: var(--color-text-muted);
 	}
+
+	.gatekeeper-intro { font-size: 0.9375rem; color: var(--color-text-muted); line-height: 1.7; margin-bottom: var(--space-md); }
+	.gatekeeper-intro strong { color: var(--color-text); }
+	.gatekeeper-stat {
+		display: flex; align-items: center; gap: var(--space-md);
+		padding: var(--space-md); margin-bottom: var(--space-md);
+		background: var(--color-bg-raised); border: 1px solid var(--color-border);
+		border-left: 4px solid var(--color-nay, #b85450); border-radius: 8px;
+	}
+	.gk-number { font-size: 2.25rem; font-weight: 800; color: var(--color-nay, #b85450); line-height: 1; }
+	.gk-label { font-size: 0.9375rem; color: var(--color-text-muted); line-height: 1.5; }
+	.gk-bills { list-style: none; padding: 0; margin: 0 0 var(--space-md); display: flex; flex-direction: column; gap: var(--space-xs); }
+	.gk-bills a { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); background: var(--color-bg-raised); border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text); font-size: 0.875rem; }
+	.gk-bills a:hover { background: var(--color-bg-hover); text-decoration: none; }
+	.gk-tier { font-size: 0.625rem; font-weight: 800; padding: 0.15rem 0.35rem; border-radius: 4px; flex-shrink: 0; }
+	.gk-tier.tier-1 { background: var(--color-score-terrible, #8b2520); color: #fff; }
+	.gk-tier.tier-2 { background: var(--color-score-bad, #b85450); color: #fff; }
+	.gk-num { font-weight: 700; flex-shrink: 0; }
+	.gk-title { color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.gk-foot, .gatekeeper-clean { font-size: 0.8125rem; color: var(--color-text-dim); }
 
 	.finance {
 		display: flex;

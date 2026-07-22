@@ -37,9 +37,19 @@
 	{#each data.committees as c (c.committee)}
 		<section class="committee-graveyard">
 			<div class="committee-head">
-				<h2>
-					{#if c.committee_id}<a href="/committees/{c.committee_id}">{c.committee}</a>{:else}{c.committee}{/if}
-				</h2>
+				<div class="committee-title">
+					<h2>
+						{#if c.committee_id}<a href="/committees/{c.committee_id}">{c.committee}</a>{:else}{c.committee}{/if}
+						<span class="chamber-tag">{c.chamber === 'H' ? 'House' : 'Senate'}</span>
+					</h2>
+					{#if c.chair}
+						<div class="chair-line">
+							Chair:
+							{#if c.chair.member_id}<a href="/members/{c.chair.member_id}">{c.chair.name}</a>{:else}{c.chair.name}{/if}
+							— controls what this committee votes on
+						</div>
+					{/if}
+				</div>
 				<span class="died-count">{c.bills.length} buried</span>
 			</div>
 			<div class="bill-list">
@@ -96,6 +106,9 @@
 		border-bottom: 1px solid var(--color-border);
 	}
 	.committee-head h2 { font-size: 1.125rem; }
+	.committee-title { min-width: 0; }
+	.chamber-tag { font-size: 0.6875rem; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-left: var(--space-xs); }
+	.chair-line { font-size: 0.8125rem; color: var(--color-text-muted); margin-top: 2px; }
 	.died-count { font-size: 0.8125rem; color: var(--color-nay, #b85450); font-weight: 700; white-space: nowrap; }
 
 	.bill-list { display: flex; flex-direction: column; gap: var(--space-xs); }

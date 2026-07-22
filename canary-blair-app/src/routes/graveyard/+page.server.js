@@ -35,24 +35,47 @@ export async function load() {
 	const bills = await fetchAll(
 		supabase,
 		'bills',
-		'id, bill_number, title, ai_impact_tier, ai_who_benefits, committee_id, committee_name',
+		'id, bill_number, title, ai_impact_tier, ai_who_benefits, committee_id, committee_name, chamber',
 		(q) => q.eq('ai_alignment', 'for_people').in('ai_impact_tier', [1, 2])
 	);
 
 	// Died without a vote = never appeared in any roll call.
 	const dead = bills.filter((b) => !votedBillIds.has(b.id));
 
-	// Group by (normalized) committee, biggest graveyards first.
+	// Committee chairs (schema/019, populated by committee-scrape.js). Keyed by
+	// normalized committee name + chamber, since Judiciary/Finance/etc. exist in
+	// both chambers. Empty until the scrape runs — the page degrades gracefully.
+	const { data: chairRows } = await supabase
+		.from('committee_memberships')
+		.select('committee_name, chamber, member_display, members(id, full_name)')
+		.eq('role', 'chair');
+	const chairByKey = new Map();
+	for (const c of chairRows || []) {
+		chairByKey.set(`${normCommittee(c.committee_name)}|${c.chamber}`, {
+			member_id: c.members?.id || null,
+			name: c.members?.full_name || c.member_display
+		});
+	}
+
+	// Group by (normalized committee name + chamber), biggest graveyards first.
 	const groups = new Map();
 	for (const b of dead) {
-		const name = normCommittee(b.committee_name);
-		if (!groups.has(name)) groups.set(name, { committee: name, committee_id: b.committee_id || null, bills: [] });
-		groups.get(name).bills.push(b);
+		const norm = normCommittee(b.committee_name);
+		const key = `${norm}|${b.chamber}`;
+		if (!groups.has(key)) {
+			groups.set(key, {
+				committee: norm,
+				chamber: b.chamber,
+				committee_id: b.committee_id || null,
+				chair: chairByKey.get(key) || null,
+				bills: []
+			});
+		}
+		groups.get(key).bills.push(b);
 	}
 	const committees = [...groups.values()]
 		.map((g) => ({
 			...g,
-			// Landmark bills first within each committee.
 			bills: g.bills.sort((a, b) => a.ai_impact_tier - b.ai_impact_tier || a.bill_number.localeCompare(b.bill_number))
 		}))
 		.sort((a, b) => b.bills.length - a.bills.length);

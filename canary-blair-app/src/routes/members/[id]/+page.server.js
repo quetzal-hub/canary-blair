@@ -127,6 +127,40 @@ export async function load({ params, url }) {
 	items.sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
 	sponsorItems.sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
 
+	// ── Gatekeeper: what died in the committees this member CHAIRS ──
+	// A chair controls their committee's agenda, so bills that die there without
+	// a vote are attributable to them. Only runs for the ~46 chairs.
+	const normCom = (s) => (s || '').replace(/\s*&\s*/g, ' and ').replace(/\s+/g, ' ').trim().toLowerCase();
+	const { data: chairRoles } = await supabase
+		.from('committee_memberships')
+		.select('committee_name, chamber')
+		.eq('member_id', id)
+		.eq('role', 'chair');
+
+	let gatekeeper = null;
+	if (chairRoles && chairRoles.length) {
+		const chairedKeys = new Set(chairRoles.map((c) => `${normCom(c.committee_name)}|${c.chamber}`));
+		const chambers = [...new Set(chairRoles.map((c) => c.chamber))];
+		const { data: hiBills } = await supabase
+			.from('bills')
+			.select('id, bill_number, title, ai_impact_tier, committee_name, chamber')
+			.eq('ai_alignment', 'for_people')
+			.in('ai_impact_tier', [1, 2])
+			.in('chamber', chambers);
+		const inMyCommittees = (hiBills || []).filter(
+			(b) => b.committee_name && chairedKeys.has(`${normCom(b.committee_name)}|${b.chamber}`)
+		);
+		let votedSet = new Set();
+		if (inMyCommittees.length) {
+			const { data: rcs } = await supabase.from('roll_calls').select('bill_id').in('bill_id', inMyCommittees.map((b) => b.id));
+			votedSet = new Set((rcs || []).map((r) => r.bill_id));
+		}
+		const buried = inMyCommittees
+			.filter((b) => !votedSet.has(b.id))
+			.sort((a, b) => a.ai_impact_tier - b.ai_impact_tier || a.bill_number.localeCompare(b.bill_number));
+		gatekeeper = { committees: chairRoles.map((c) => c.committee_name), buried };
+	}
+
 	// Did a human review any of the bills feeding this score? (drives the note)
 	const anyReviewed =
 		(scoredVotes.some((v) => v.bills?.ai_alignment_override != null || v.bills?.ai_impact_tier_override != null)) ||
@@ -147,6 +181,7 @@ export async function load({ params, url }) {
 			totals,
 			anyReviewed
 		},
+		gatekeeper,
 		scoreHistory: historyRes.error ? [] : (historyRes.data || [])
 	};
 }
