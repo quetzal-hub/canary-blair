@@ -131,6 +131,42 @@
 		</section>
 	{/if}
 
+	{#if data.facts && (data.facts.emergency.length || data.facts.appointment.length || data.facts.clemency.length || data.facts.other.length)}
+		{@const f = data.facts}
+		<section class="section">
+			<h2>Beyond the Score — the record we don't grade</h2>
+			<p class="facts-intro">
+				Some of what a governor does can't be fairly reduced to for-people or for-capital — emergency
+				responses, who he appoints, clemency. We record these as facts, straight from his official news
+				feed, and let you judge them. They never touch the score.
+			</p>
+
+			{#each [
+				{ key: 'emergency', label: '🚨 Emergency & Disaster Declarations', list: f.emergency },
+				{ key: 'appointment', label: '👤 Appointments & Personnel', list: f.appointment },
+				{ key: 'clemency', label: '⚖️ Pardons & Clemency', list: f.clemency },
+				{ key: 'other', label: '📰 Other Recent Official Actions', list: f.other }
+			] as group}
+				{#if group.list.length}
+					<div class="facts-group">
+						<h3 class="facts-heading">{group.label}</h3>
+						<ul class="facts-list">
+							{#each group.list as item}
+								<li>
+									<a href={item.url} target="_blank" rel="noopener noreferrer">
+										{#if item.date}<span class="fact-date">{item.date}</span>{/if}
+										<span class="fact-title">{item.title}</span>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			{/each}
+			<p class="facts-source">Source: the Governor's official <a href="https://governor.wv.gov/news" target="_blank" rel="noopener noreferrer">news feed</a>, live.</p>
+		</section>
+	{/if}
+
 	<section class="section">
 		<h2>More</h2>
 		<p class="more-links">
@@ -219,6 +255,21 @@
 	.finance-label { color: var(--color-text-muted); font-size: 0.9375rem; }
 	.finance-note { font-size: 0.8125rem; color: var(--color-text-dim); }
 	.more-links { font-size: 0.9375rem; }
+
+	.facts-intro { font-size: 0.9375rem; color: var(--color-text-muted); line-height: 1.7; margin-bottom: var(--space-lg); }
+	.facts-group { margin-bottom: var(--space-lg); }
+	.facts-heading { font-size: 0.9375rem; margin-bottom: var(--space-sm); }
+	.facts-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+	.facts-list a {
+		display: flex; align-items: baseline; gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		background: var(--color-bg-raised); border: 1px solid var(--color-border); border-radius: 6px;
+		color: var(--color-text); font-size: 0.875rem;
+	}
+	.facts-list a:hover { background: var(--color-bg-hover); text-decoration: none; }
+	.fact-date { font-size: 0.75rem; color: var(--color-text-dim); font-variant-numeric: tabular-nums; flex-shrink: 0; white-space: nowrap; }
+	.fact-title { line-height: 1.4; }
+	.facts-source { font-size: 0.8125rem; color: var(--color-text-dim); margin-top: var(--space-sm); }
 
 	@media (max-width: 560px) {
 		.gov-header { flex-direction: column; text-align: center; }
