@@ -61,6 +61,7 @@
 				<a href="/leadership">Leadership</a>
 				<a href="/committees">Committees</a>
 				<a href="/graveyard">Graveyard</a>
+				<a href="/theater">The Theater</a>
 				<a href="/compare">Compare</a>
 				<a href="/feeds">Feeds</a>
 				<a href="/data">Open Data</a>

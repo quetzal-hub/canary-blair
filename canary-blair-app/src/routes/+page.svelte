@@ -96,12 +96,12 @@
 		</section>
 	{/if}
 
-	<!-- The Graveyard callout — the story the scores can't tell -->
-	<a href="/graveyard" class="graveyard-callout">
-		<span class="gc-icon" aria-hidden="true">🪦</span>
+	<!-- The Theater callout — the story the scores can't tell -->
+	<a href="/theater" class="graveyard-callout">
+		<span class="gc-icon" aria-hidden="true">🎭</span>
 		<span class="gc-text">
-			<strong>Scores only measure the votes they were allowed to take.</strong>
-			See the high-impact bills that would have helped West Virginians — killed in committee without a vote →
+			<strong>A score only measures the votes they were allowed to take.</strong>
+			See how the legislature engineers a benevolent-looking record — and read past it →
 		</span>
 	</a>
 
