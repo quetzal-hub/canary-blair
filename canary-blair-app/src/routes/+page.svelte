@@ -96,6 +96,15 @@
 		</section>
 	{/if}
 
+	<!-- The Graveyard callout — the story the scores can't tell -->
+	<a href="/graveyard" class="graveyard-callout">
+		<span class="gc-icon" aria-hidden="true">🪦</span>
+		<span class="gc-text">
+			<strong>Scores only measure the votes they were allowed to take.</strong>
+			See the high-impact bills that would have helped West Virginians — killed in committee without a vote →
+		</span>
+	</a>
+
 	<!-- Bills to Watch / Most Impactful Bills of the Session -->
 	{#if data.peopleBills.length > 0 || data.capitalBills.length > 0}
 		<section class="bills-watch">
@@ -288,6 +297,23 @@
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
 	}
+
+	.graveyard-callout {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		padding: var(--space-md) var(--space-lg);
+		margin-bottom: var(--space-xl);
+		background: var(--color-bg-raised);
+		border: 1px solid var(--color-border);
+		border-left: 4px solid var(--color-nay, #b85450);
+		border-radius: 10px;
+		color: var(--color-text);
+	}
+	.graveyard-callout:hover { background: var(--color-bg-hover); text-decoration: none; }
+	.gc-icon { font-size: 2rem; flex-shrink: 0; }
+	.gc-text { font-size: 0.9375rem; line-height: 1.6; color: var(--color-text-muted); }
+	.gc-text strong { color: var(--color-text); }
 
 	/* Bills to Watch */
 	.bills-watch {

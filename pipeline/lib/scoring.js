@@ -20,13 +20,19 @@ import { STATE_CONFIG } from './state-config.js';
 // ─────────────────────────────────────────
 // Each bill has an impact tier (1-6). Higher-impact bills weigh more.
 
+// Steep on purpose: a handful of landmark bills define a session far more than
+// a pile of routine ones, so a landmark counts 12× a routine bill and ~120× a
+// ceremonial resolution. Flatter weights let a mass of small feel-good votes
+// arithmetically wash out a few enormous harms — which is exactly how a
+// legislature games an accountability score. (See also fiscal-capacity reasoning
+// in the classification prompt.)
 export const TIER_WEIGHTS = {
-	1: 5, // Landmark — transformative structural change
-	2: 3, // High Impact — significant real-world consequences
-	3: 2, // Meaningful — clear but narrower scope
+	1: 12, // Landmark — transformative structural change
+	2: 6, // High Impact — significant real-world consequences
+	3: 2.5, // Meaningful — clear but narrower scope
 	4: 1, // Routine — standard legislation
-	5: 0.5, // Minor — procedural tweaks
-	6: 0.25 // Ceremonial — symbolic, no policy impact
+	5: 0.4, // Minor — procedural tweaks
+	6: 0.1 // Ceremonial — symbolic, no policy impact
 };
 
 // Sponsoring a bill is a stronger signal than voting on it.
@@ -34,6 +40,39 @@ export const SPONSOR_WEIGHTS = {
 	1: 3, // Primary sponsor — you wrote or championed it
 	2: 1.5 // Cosponsor — you signed on in support
 };
+
+// Contested-vote weighting. Most votes in a session are near-unanimous consensus
+// bills; a yea shared with 95% of the chamber reveals almost nothing about a
+// legislator, while a vote on a 55-45 split reveals a great deal. Each vote's
+// score weight scales with how divided its roll call was, so the handful of
+// genuinely contested votes — where character actually shows — aren't drowned out
+// by the consensus mass. A unanimous vote still counts UNANIMOUS_VOTE_WEIGHT of a
+// coin-flip vote of the same impact (not zero: showing up and voting right is
+// mildly positive), rising linearly to full weight at a perfect 50/50 split.
+export const UNANIMOUS_VOTE_WEIGHT = 0.25;
+
+export function contestednessFactor(yea, nay) {
+	const total = (yea || 0) + (nay || 0);
+	if (total < 5) return 1; // too few recorded (voice vote / thin data) — don't discount
+	const margin = Math.abs((yea || 0) - (nay || 0)) / total; // 0 = perfectly split, 1 = unanimous
+	return UNANIMOUS_VOTE_WEIGHT + (1 - UNANIMOUS_VOTE_WEIGHT) * (1 - margin);
+}
+
+// Cosponsoring a for_people bill that never advanced past committee is a nearly
+// free "virtue signal" — dozens of legislators pile onto a doomed feel-good bill
+// at no cost. That cheap signal is discounted to CHEAP_SPONSOR_WEIGHT. Primary
+// sponsorship (you championed it), ANY for_capital sponsorship (your name on a
+// harmful bill reveals intent regardless of outcome), and any bill that actually
+// advanced past committee all keep full weight.
+export const CHEAP_SPONSOR_WEIGHT = 0.25;
+
+// A bill "advanced" if it got past its first committee — engrossed (2), enrolled
+// (3), passed (4), or vetoed (5, meaning it passed the legislature). Introduced-
+// and-stuck (1) or dead (6) did not advance.
+const ADVANCED_STATUSES = new Set([2, 3, 4, 5]);
+export function billAdvanced(status) {
+	return status == null ? true : ADVANCED_STATUSES.has(status);
+}
 
 // AI classification confidence scales a bill's weight: an uncertain call moves
 // scores less until a human confirms it. A human alignment override restores
@@ -167,6 +206,7 @@ export function buildBillMap(bills) {
 			forPeople: alignment === 'for_people',
 			forCapital: alignment === 'for_capital',
 			weight: getBillWeight(bill),
+			advanced: billAdvanced(bill.status),
 			tags: bill.ai_tags || []
 		});
 	}
@@ -177,12 +217,12 @@ export function buildBillMap(bills) {
  * Pure scoring function.
  *
  * @param {object} input
- * @param {Array}  input.bills         rows with id, ai_tags, ai_alignment[_override], ai_impact_tier[_override]
+ * @param {Array}  input.bills         rows with id, ai_tags, ai_alignment[_override], ai_impact_tier[_override], ai_confidence, status
  * @param {Array}  input.votes         rows with member_id, vote_value, bill_id, roll_call_id
  * @param {Array}  input.members       rows with id, full_name, party, chamber
  * @param {Array}  input.sponsorships  rows with member_id, bill_id, sponsor_type
  * @param {Map}    [input.priorScores] member_id → previous session's canary_score (for Most Improved)
- * @param {Array}  [input.rollCalls]   rows with id, date — enables date-accurate final-vote dedupe
+ * @param {Array}  [input.rollCalls]   rows with id, date, yea, nay — date drives final-vote dedupe; yea/nay drive contested-vote weighting
  * @returns {Array} one result per member:
  *   { id, full_name, party, canary_score, canary_tier, canary_badges, canary_votes_scored }
  */
@@ -200,6 +240,10 @@ export function scoreMembers({ bills, votes: rawVotes, members, sponsorships, pr
 
 	const memberParty = new Map();
 	for (const m of members) memberParty.set(m.id, m.party);
+
+	// Full-chamber yea/nay per roll call (from LegiScan), for contested-vote weighting.
+	const rcInfo = new Map();
+	for (const rc of rollCalls) rcInfo.set(rc.id, { yea: rc.yea, nay: rc.nay });
 
 	const rollCallPartyVotes = new Map(); // roll_call_id → { R: {yea, nay}, D: {yea, nay} }
 	for (const v of votes) {
@@ -250,9 +294,13 @@ export function scoreMembers({ bills, votes: rawVotes, members, sponsorships, pr
 			if (!bill) continue; // neutral or untagged
 
 			scoredVoteCount++;
-			const w = bill.weight;
-			maxPossibleScore += w;
-			rawScore += votePoints({ forPeople: bill.forPeople, forCapital: bill.forCapital, weight: w, voteValue: v.vote_value });
+			const w = bill.weight; // impact × confidence — drives the topic badges (consistency on a subject)
+			// Score weight also folds in how contested the roll call was: a vote
+			// nobody split on barely moves the number, a divided vote moves it a lot.
+			const rc = rcInfo.get(v.roll_call_id);
+			const sw = w * (rc ? contestednessFactor(rc.yea, rc.nay) : 1);
+			maxPossibleScore += sw;
+			rawScore += votePoints({ forPeople: bill.forPeople, forCapital: bill.forCapital, weight: sw, voteValue: v.vote_value });
 
 			if (bill.forCapital) {
 				forCapitalVoteTotal++;
@@ -307,7 +355,12 @@ export function scoreMembers({ bills, votes: rawVotes, members, sponsorships, pr
 		for (const s of mySponsorships) {
 			const bill = billMap.get(s.bill_id);
 			if (!bill) continue;
-			const w = (SPONSOR_WEIGHTS[s.sponsor_type] || 1) * bill.weight;
+			const base = (SPONSOR_WEIGHTS[s.sponsor_type] || 1) * bill.weight;
+			// Cheap-virtue discount: a cosponsor pile-on onto a for_people bill that
+			// died in committee is nearly free credit. Primary sponsors, for_capital
+			// sponsorships, and bills that advanced all keep full weight.
+			const cheapVirtue = s.sponsor_type !== 1 && bill.forPeople && !bill.advanced;
+			const w = cheapVirtue ? base * CHEAP_SPONSOR_WEIGHT : base;
 			maxSponsorScore += w;
 			if (bill.forPeople) sponsorScore += w;
 			else if (bill.forCapital) sponsorScore -= w;
@@ -366,6 +419,8 @@ export function explainMemberScore({ memberId, bills, votes: rawVotes, sponsorsh
 
 	// Same final-vote dedupe as the scorer, so the audit trail matches the score.
 	const votes = dedupeVotes(rawVotes.filter((v) => v.member_id === memberId), rollCalls);
+	const rcInfo = new Map();
+	for (const rc of rollCalls) rcInfo.set(rc.id, { yea: rc.yea, nay: rc.nay });
 
 	const items = [];
 	let peopleYea = 0, peopleNay = 0, capitalYea = 0, capitalNay = 0, missed = 0;
@@ -374,7 +429,9 @@ export function explainMemberScore({ memberId, bills, votes: rawVotes, sponsorsh
 	for (const v of votes) {
 		const bill = billMap.get(v.bill_id);
 		if (!bill) continue;
-		const points = votePoints({ forPeople: bill.forPeople, forCapital: bill.forCapital, weight: bill.weight, voteValue: v.vote_value });
+		const rc = rcInfo.get(v.roll_call_id);
+		const sw = bill.weight * (rc ? contestednessFactor(rc.yea, rc.nay) : 1);
+		const points = votePoints({ forPeople: bill.forPeople, forCapital: bill.forCapital, weight: sw, voteValue: v.vote_value });
 		votePointTotal += points;
 		const src = billById.get(v.bill_id);
 		items.push({
@@ -383,7 +440,7 @@ export function explainMemberScore({ memberId, bills, votes: rawVotes, sponsorsh
 			title: src?.title,
 			alignment: bill.forPeople ? 'for_people' : 'for_capital',
 			impact_tier: effectiveImpactTier(src),
-			weight: bill.weight,
+			weight: Math.round(sw * 100) / 100,
 			vote_value: v.vote_value,
 			points: Math.round(points * 100) / 100
 		});
@@ -398,7 +455,9 @@ export function explainMemberScore({ memberId, bills, votes: rawVotes, sponsorsh
 		if (s.member_id !== memberId) continue;
 		const bill = billMap.get(s.bill_id);
 		if (!bill) continue;
-		const w = (SPONSOR_WEIGHTS[s.sponsor_type] || 1) * bill.weight;
+		const base = (SPONSOR_WEIGHTS[s.sponsor_type] || 1) * bill.weight;
+		const cheapVirtue = s.sponsor_type !== 1 && bill.forPeople && !bill.advanced;
+		const w = cheapVirtue ? base * CHEAP_SPONSOR_WEIGHT : base;
 		const points = bill.forPeople ? w : bill.forCapital ? -w : 0;
 		if (points === 0) continue;
 		sponsorPointTotal += points;

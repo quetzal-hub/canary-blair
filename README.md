@@ -123,18 +123,24 @@ Every WV legislator gets a **Canary Score** from 0–100, calculated mathematica
 
 | Score | Tier | Name | Tagline |
 |-------|------|------|---------|
-| 80–100 | ✨ | Mountaineer | *"Votes like they actually live here."* |
-| 60–79 | 🌱 | Friend of the Holler | *"Not perfect, but they're trying."* |
-| 45–59 | 🌫️ | Weathervane | *"Blows whichever way the lobby goes."* |
-| 35–44 | 🪨 | Company Man | *"Reliable — just not for you."* |
-| 20–34 | 🐀 | Rat in the Capitol | *"Actively working against the people who elected them."* |
-| 0–19 | ☠️ | Owned | *"Congratulations to their donors on their investment."* |
+| 78–100 | ✨ | Mountaineer | *"Votes like they actually live here."* |
+| 63–77 | 🌱 | Friend of the Holler | *"Not perfect, but they're trying."* |
+| 50–62 | 🌫️ | Weathervane | *"Blows whichever way the lobby goes."* |
+| 40–49 | 🪨 | Company Man | *"Reliable — just not for you."* |
+| 27–39 | 🐀 | Rat in the Capitol | *"Actively working against the people who elected them."* |
+| 0–26 | ☠️ | Owned | *"Congratulations to their donors on their investment."* |
 
-**How it works:** Every bill gets an AI-assigned alignment (`for_people`, `for_capital`, or `neutral`) and an impact tier from 1 (Landmark, weighted 5×) to 6 (Ceremonial, weighted 0.25×). Votes on aligned bills earn or lose points scaled by the bill's impact weight; skipping a vote costs a small penalty. Sponsorship counts even more than voting — primary sponsors get 3× weight, cosponsors 1.5× — because putting your name on a bill is a stronger signal than going along with a floor vote. The combined raw score is normalized to 0–100. Members need at least 20 scored votes before receiving a score, and scores are recalculated automatically whenever bills change and weekly on a full refresh.
+Tiers are anchored on the score's own meaning: **50 = a net-neutral weighted voting record** (equal good and bad), so the Weathervane band straddles it. Above 50 is net-positive on the bills that got floor votes; below is net-negative.
 
-Two fairness rules keep the math honest:
-- **Final vote per bill.** Only a member's vote on a bill's *latest* roll call counts — final passage supersedes committee votes, readings, and amendment maneuvering, and a bill with four roll calls doesn't count 4× as much as one with a single vote.
-- **Confidence-weighted classification.** When the AI reports lower confidence in a bill's alignment call, that bill moves scores less (`low` ×0.5, `medium` ×0.75, `high` ×1.0). A human review-and-override restores full weight — uncertain calls count half until a person confirms them.
+**How it works:** Every bill gets an AI-assigned alignment (`for_people`, `for_capital`, or `neutral`) and an impact tier from 1 (Landmark, weighted 12×) to 6 (Ceremonial, weighted 0.1×). Votes on aligned bills earn or lose points scaled by the bill's impact weight; skipping a vote costs a small penalty. Sponsorship counts even more than voting — primary sponsors get 3× weight, cosponsors 1.5× — because putting your name on a bill is a stronger signal than going along with a floor vote. The combined raw score is normalized to 0–100. Members need at least 20 scored votes before receiving a score, and scores are recalculated automatically whenever bills change and weekly on a full refresh.
+
+Four fairness rules keep the math honest — and, deliberately, make the score hard to game by hiding behind consensus:
+- **Contested-vote weighting.** Most votes in a session are near-unanimous consensus bills that reveal little about a legislator. Each vote's weight scales with how *divided* its roll call was: a yea shared with 95% of the chamber counts a quarter as much as a vote on a 55-45 split. This is the biggest lever — it means a high score requires voting with the people on the votes that actually divided the chamber, not padding a record with easy consensus bills.
+- **Steep impact weights.** A landmark bill counts 12× a routine one and ~120× a ceremonial resolution — because a few enormous bills define a session, and flat weights let a pile of small feel-good votes arithmetically wash out a few huge harms.
+- **Cheap-virtue discount.** Cosponsoring a `for_people` bill that died in committee without advancing is nearly free credit — dozens of legislators pile onto doomed feel-good bills at no cost. That signal is discounted to ¼. Primary sponsorship, any `for_capital` sponsorship (your name on a harmful bill reveals intent regardless of outcome), and bills that actually advanced all keep full weight.
+- **Final vote per bill + confidence weighting.** Only a member's vote on a bill's *latest* roll call counts (final passage supersedes amendment maneuvering); and when the AI is less confident in a bill's alignment, that bill moves scores less (`low` ×0.5, `medium` ×0.75) until a human confirms it.
+
+**What the score can and can't measure — [the Graveyard](#).** A Canary Score only reflects the bills a legislator was *allowed* to vote on. The most consequential decisions of a session are often the ones that never reached the floor: high-impact bills that would have helped West Virginians, quietly killed in committee without a single recorded vote. The site's **Graveyard** page (`/graveyard`) surfaces exactly those — grouped by the committee that buried them — because an action-based score is structurally blind to sins of omission, and that omission is frequently the real story.
 
 **Every score is auditable and permanent.** Each member profile has a "How we got this number" breakdown listing every scored vote and the exact points it contributed — the score is math you can check, not an opinion. Scores are also snapshotted to a permanent history on every recalculation, so once a session adjourns a legislator's tier is locked and cannot be revised away. When the AI misclassifies a bill, a human can correct it with an audit-trailed, publicly-flagged override rather than silently re-running the model.
 

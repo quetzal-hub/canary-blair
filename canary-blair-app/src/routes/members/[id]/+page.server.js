@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { error } from '@sveltejs/kit';
-import { effectiveAlignment, effectiveImpactTier, billWeight, votePoints, SPONSOR_WEIGHTS } from '$lib/utils.js';
+import { effectiveAlignment, effectiveImpactTier, billWeight, votePoints, SPONSOR_WEIGHTS, contestednessFactor, billAdvanced, CHEAP_SPONSOR_WEIGHT } from '$lib/utils.js';
 
 const VOTES_PER_PAGE = 30;
 
@@ -38,7 +38,7 @@ export async function load({ params, url }) {
 		// it to scored bills only.
 		supabase
 			.from('votes')
-			.select(`vote_value, roll_call_id, roll_calls(date), bills!inner(${BILL_COLS})`)
+			.select(`vote_value, roll_call_id, roll_calls(date, yea, nay), bills!inner(${BILL_COLS})`)
 			.eq('member_id', id)
 			.in('bills.ai_alignment', ['for_people', 'for_capital']),
 		// Permanent score history (schema/007). Table may not exist yet on older
@@ -77,7 +77,9 @@ export async function load({ params, url }) {
 		const bill = v.bills;
 		const alignment = effectiveAlignment(bill);
 		if (alignment !== 'for_people' && alignment !== 'for_capital') continue; // override may have neutralized it
-		const weight = billWeight(bill);
+		// Same weighting as the engine: impact × confidence × how contested the vote was.
+		const cf = v.roll_calls ? contestednessFactor(v.roll_calls.yea, v.roll_calls.nay) : 1;
+		const weight = billWeight(bill) * cf;
 		const points = votePoints(alignment, v.vote_value, weight);
 		totals.vote_points += points;
 		if (v.vote_value === 3 || v.vote_value === 4) totals.missed++;
@@ -101,7 +103,11 @@ export async function load({ params, url }) {
 		if (!bill) continue;
 		const alignment = effectiveAlignment(bill);
 		if (alignment !== 'for_people' && alignment !== 'for_capital') continue;
-		const weight = (SPONSOR_WEIGHTS[s.sponsor_type] || 1) * billWeight(bill);
+		// Cheap-virtue discount matches the engine: a cosponsor pile-on onto a
+		// dead for_people bill counts a quarter; everything else full.
+		const base = (SPONSOR_WEIGHTS[s.sponsor_type] || 1) * billWeight(bill);
+		const cheapVirtue = s.sponsor_type !== 1 && alignment === 'for_people' && !billAdvanced(bill.status);
+		const weight = cheapVirtue ? base * CHEAP_SPONSOR_WEIGHT : base;
 		const points = alignment === 'for_people' ? weight : -weight;
 		totals.sponsor_points += points;
 		sponsorItems.push({

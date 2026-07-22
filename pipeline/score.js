@@ -26,7 +26,7 @@ async function run() {
 
 	// Overrides + confidence matter: the engine scores effective (post-override)
 	// values and discounts low-confidence AI calls.
-	const bills = await fetchAllRows(db, 'bills?select=id,ai_tags,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override,ai_confidence&ai_tags=not.is.null');
+	const bills = await fetchAllRows(db, 'bills?select=id,ai_tags,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override,ai_confidence,status&ai_tags=not.is.null');
 	const forPeopleCount = bills.filter((b) => b.ai_alignment === 'for_people').length;
 	const forCapitalCount = bills.filter((b) => b.ai_alignment === 'for_capital').length;
 	console.log(`📊 Loaded ${bills.length} tagged bills — ${forPeopleCount} FOR_PEOPLE, ${forCapitalCount} FOR_CAPITAL, ${bills.length - forPeopleCount - forCapitalCount} NEUTRAL`);
@@ -34,8 +34,8 @@ async function run() {
 	const votes = await fetchAllRows(db, 'votes?select=member_id,vote_value,bill_id,roll_call_id');
 	console.log(`🗳️  Loaded ${votes.length.toLocaleString()} votes`);
 
-	// Roll-call dates let the engine keep only each member's final vote per bill.
-	const rollCalls = await fetchAllRows(db, 'roll_calls?select=id,date');
+	// Roll-call dates drive final-vote dedupe; yea/nay drive contested-vote weighting.
+	const rollCalls = await fetchAllRows(db, 'roll_calls?select=id,date,yea,nay');
 
 	const members = await fetchAllRows(db, 'members?select=id,full_name,party,chamber');
 	const sponsorships = await fetchAllRows(db, 'bill_sponsors?select=member_id,bill_id,sponsor_type');

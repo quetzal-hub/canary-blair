@@ -85,19 +85,19 @@ test('true totals count every action regardless of alignment; scored subset only
 });
 
 test('impact tier and confidence weighting flow through from the shared engine', () => {
-	// Landmark for_capital signing (w=5) vs routine for_people signing (w=1):
-	// raw = 1 - 5 = -4, max = 6 -> round((2/12)*100) = 17
+	// Landmark for_capital signing (w=12) vs routine for_people signing (w=1):
+	// raw = 1 - 12 = -11, max = 13 -> round((2/26)*100) = 8
 	const bills = [bill(1, 'for_people', 4), bill(2, 'for_capital', 1)];
 	const actionsByBill = new Map([
 		[1, ['Approved by Governor 3/25/2026']],
 		[2, ['Approved by Governor 3/25/2026']]
 	]);
-	assert.equal(scoreGovernor({ bills, actionsByBill }).score, 17);
+	assert.equal(scoreGovernor({ bills, actionsByBill }).score, 8);
 
-	// Same but the landmark call is low-confidence (x0.5 -> w=2.5):
-	// raw = 1 - 2.5 = -1.5, max = 3.5 -> round((2/7)*100) = 29
+	// Same but the landmark call is low-confidence (x0.5 -> w=6):
+	// raw = 1 - 6 = -5, max = 7 -> round((2/14)*100) = 14
 	const bills2 = [bill(1, 'for_people', 4), bill(2, 'for_capital', 1, { ai_confidence: 'low' })];
-	assert.equal(scoreGovernor({ bills: bills2, actionsByBill }).score, 29);
+	assert.equal(scoreGovernor({ bills: bills2, actionsByBill }).score, 14);
 });
 
 test('a human alignment override flips how an action is scored', () => {
@@ -114,8 +114,8 @@ test('items are itemized with signed points and sorted by magnitude', () => {
 	]);
 	const { items } = scoreGovernor({ bills, actionsByBill });
 	assert.equal(items.length, 2);
-	assert.equal(items[0].bill_number, 'HB1'); // |+5| > |-1|
-	assert.equal(items[0].points, 5);
+	assert.equal(items[0].bill_number, 'HB1'); // |+12| > |-1|
+	assert.equal(items[0].points, 12);
 	assert.equal(items[1].points, -1);
 });
 

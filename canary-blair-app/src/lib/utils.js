@@ -223,7 +223,25 @@ export function scoreColor(score) {
 // pipeline are separate packages, so they can't share one import.)
 // ─────────────────────────────────────────
 
-export const TIER_WEIGHTS = { 1: 5, 2: 3, 3: 2, 4: 1, 5: 0.5, 6: 0.25 };
+export const TIER_WEIGHTS = { 1: 12, 2: 6, 3: 2.5, 4: 1, 5: 0.4, 6: 0.1 };
+
+// Contested-vote weighting — a unanimous vote reveals little, a divided one a lot.
+export const UNANIMOUS_VOTE_WEIGHT = 0.25;
+export function contestednessFactor(yea, nay) {
+	const total = (yea || 0) + (nay || 0);
+	if (total < 5) return 1;
+	const margin = Math.abs((yea || 0) - (nay || 0)) / total;
+	return UNANIMOUS_VOTE_WEIGHT + (1 - UNANIMOUS_VOTE_WEIGHT) * (1 - margin);
+}
+
+// Cheap-virtue: a cosponsor pile-on onto a for_people bill that never advanced
+// past committee is nearly free credit — discounted. Primary sponsors,
+// for_capital sponsorships, and advanced bills keep full weight.
+export const CHEAP_SPONSOR_WEIGHT = 0.25;
+const ADVANCED_STATUSES = new Set([2, 3, 4, 5]);
+export function billAdvanced(status) {
+	return status == null ? true : ADVANCED_STATUSES.has(status);
+}
 
 /** Effective (post-human-override) bill values. */
 export function effectiveAlignment(bill) {

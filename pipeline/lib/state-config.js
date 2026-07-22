@@ -47,12 +47,19 @@ export const STATE_CONFIG = {
 
 	// Canary tiers. Order matters — highest threshold first. `min` is the
 	// inclusive lower bound of the tier's score range.
+	//
+	// Anchored on the score's own meaning: 50 = a net-neutral weighted voting
+	// record (equal good and bad, so the Weathervane band straddles it). Above
+	// 50 is net-positive on floor votes, below is net-negative. With
+	// contested-vote weighting, a high score requires voting with the people on
+	// the votes that actually divided the chamber — it can't be padded with
+	// consensus bills — so the top tier is deliberately demanding (~top 10%).
 	tiers: [
-		{ min: 80, tier: 1, name: 'Mountaineer', emoji: '✨', tagline: 'Votes like they actually live here.' },
-		{ min: 60, tier: 2, name: 'Friend of the Holler', emoji: '🌱', tagline: "Not perfect, but they're trying." },
-		{ min: 45, tier: 3, name: 'Weathervane', emoji: '🌫️', tagline: 'Blows whichever way the lobby goes.' },
-		{ min: 35, tier: 4, name: 'Company Man', emoji: '🪨', tagline: 'Reliable — just not for you.' },
-		{ min: 20, tier: 5, name: 'Rat in the Capitol', emoji: '🐀', tagline: 'Actively working against the people who elected them.' },
+		{ min: 78, tier: 1, name: 'Mountaineer', emoji: '✨', tagline: 'Votes like they actually live here.' },
+		{ min: 63, tier: 2, name: 'Friend of the Holler', emoji: '🌱', tagline: "Not perfect, but they're trying." },
+		{ min: 50, tier: 3, name: 'Weathervane', emoji: '🌫️', tagline: 'Blows whichever way the lobby goes.' },
+		{ min: 40, tier: 4, name: 'Company Man', emoji: '🪨', tagline: 'Reliable — just not for you.' },
+		{ min: 27, tier: 5, name: 'Rat in the Capitol', emoji: '🐀', tagline: 'Actively working against the people who elected them.' },
 		{ min: 0, tier: 6, name: 'Owned', emoji: '☠️', tagline: 'Congratulations to their donors on their investment.' }
 	],
 

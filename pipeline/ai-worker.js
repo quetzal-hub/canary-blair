@@ -434,12 +434,12 @@ ${textSection}`.trim();
 
 		// Select override columns too — the engine uses effective (post-override)
 		// values — plus ai_confidence (low-confidence calls are discounted).
-		const bills = await fetchAllRows(this.db, 'bills?select=id,ai_tags,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override,ai_confidence&ai_tags=not.is.null');
+		const bills = await fetchAllRows(this.db, 'bills?select=id,ai_tags,ai_alignment,ai_alignment_override,ai_impact_tier,ai_impact_tier_override,ai_confidence,status&ai_tags=not.is.null');
 		const votes = await fetchAllRows(this.db, 'votes?select=member_id,vote_value,bill_id,roll_call_id');
 		const members = await fetchAllRows(this.db, 'members?select=id,full_name,party,chamber');
 		const sponsorships = await fetchAllRows(this.db, 'bill_sponsors?select=member_id,bill_id,sponsor_type');
-		// Roll-call dates for final-vote-per-bill dedupe.
-		const rollCalls = await fetchAllRows(this.db, 'roll_calls?select=id,date');
+		// Roll-call dates for dedupe; yea/nay for contested-vote weighting.
+		const rollCalls = await fetchAllRows(this.db, 'roll_calls?select=id,date,yea,nay');
 
 		console.log(`📊 ${bills.length} tagged bills, ${votes.length} votes, ${members.length} members`);
 
