@@ -68,6 +68,22 @@ test('neutral and unclassified bills are counted but never scored', () => {
 	assert.equal(totals.actions_scored, 1);
 });
 
+test('true totals count every action regardless of alignment; scored subset only aligned ones', () => {
+	// 2 signed (one for_people, one neutral), 1 vetoed (unclassified):
+	// signed_total = 2 even though only 1 signing is scored.
+	const bills = [bill(1, 'for_people'), bill(2, 'neutral'), bill(3, null)];
+	const actionsByBill = new Map([
+		[1, ['Approved by Governor 3/25/2026']],
+		[2, ['Approved by Governor 3/25/2026']],
+		[3, ['Vetoed by Governor 4/1/2026']]
+	]);
+	const { totals } = scoreGovernor({ bills, actionsByBill });
+	assert.equal(totals.signed_total, 2);
+	assert.equal(totals.vetoed_total, 1);
+	assert.equal(totals.no_signature_total, 0);
+	assert.equal(totals.signed_people + totals.signed_capital, 1); // only the aligned signing scored
+});
+
 test('impact tier and confidence weighting flow through from the shared engine', () => {
 	// Landmark for_capital signing (w=5) vs routine for_people signing (w=1):
 	// raw = 1 - 5 = -4, max = 6 -> round((2/12)*100) = 17

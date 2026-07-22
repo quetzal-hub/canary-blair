@@ -63,10 +63,15 @@
 		</p>
 
 		<section class="action-stats">
-			<div class="stat-card"><span class="stat-number">{(t.signed_people || 0) + (t.signed_capital || 0)}</span><span class="stat-label">Bills signed</span></div>
-			<div class="stat-card"><span class="stat-number">{(t.vetoed_people || 0) + (t.vetoed_capital || 0)}</span><span class="stat-label">Bills vetoed</span></div>
-			<div class="stat-card"><span class="stat-number">{(t.no_signature_people || 0) + (t.no_signature_capital || 0)}</span><span class="stat-label">Became law unsigned</span></div>
+			<div class="stat-card"><span class="stat-number">{t.signed_total || 0}</span><span class="stat-label">Bills signed</span></div>
+			<div class="stat-card"><span class="stat-number">{t.vetoed_total || 0}</span><span class="stat-label">Bills vetoed</span></div>
+			<div class="stat-card"><span class="stat-number">{t.no_signature_total || 0}</span><span class="stat-label">Became law unsigned</span></div>
 		</section>
+		<p class="scored-note">
+			Of {t.actions_total || 0} total bill actions, {t.actions_scored || 0} were on bills our AI classified as
+			clearly for the people or for capital — only those move the score. The rest were procedural or
+			administrative bills with no clear lean.
+		</p>
 
 		{#if data.breakdown?.items?.length}
 			<section class="section">
@@ -153,7 +158,8 @@
 
 	.methodology-note { font-size: 0.8125rem; color: var(--color-text-dim); line-height: 1.6; margin-bottom: var(--space-lg); }
 
-	.action-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl); }
+	.action-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-sm); }
+	.scored-note { font-size: 0.8125rem; color: var(--color-text-dim); line-height: 1.6; margin-bottom: var(--space-xl); }
 	.stat-card { text-align: center; padding: var(--space-md); background: var(--color-bg-raised); border: 1px solid var(--color-border); border-radius: 8px; display: flex; flex-direction: column; gap: 4px; }
 	.stat-number { font-size: 1.5rem; font-weight: 800; color: var(--color-accent); }
 	.stat-label { font-size: 0.8125rem; color: var(--color-text-muted); }

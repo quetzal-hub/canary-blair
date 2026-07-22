@@ -57,6 +57,10 @@ export function scoreGovernor({ bills, actionsByBill }) {
 	let max = 0;
 	const items = [];
 	const totals = {
+		// True totals per action type, INCLUDING neutral/unclassified bills —
+		// these are what actually happened, for honest display.
+		signed_total: 0, vetoed_total: 0, no_signature_total: 0,
+		// Scored subset (aligned bills only) — these are what moved the number.
 		signed_people: 0, signed_capital: 0,
 		vetoed_people: 0, vetoed_capital: 0,
 		no_signature_people: 0, no_signature_capital: 0,
@@ -67,6 +71,7 @@ export function scoreGovernor({ bills, actionsByBill }) {
 		const action = governorActionForBill(actionTexts);
 		if (!action) continue;
 		totals.actions_total++;
+		totals[`${action === 'no_signature' ? 'no_signature' : action}_total`]++;
 
 		const bill = billMap.get(billId);
 		if (!bill) continue; // neutral or unclassified — doesn't move the score
